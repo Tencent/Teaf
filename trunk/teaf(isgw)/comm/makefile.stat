@@ -1,0 +1,18 @@
+CXX=g++
+CFLAGS= -g -D_STAT_DEMO_
+INCLUDE=-I./ -I/usr/local/include/ace
+LIBS=-static -L./ -lACE -lnsl -lm -lz -lc -ldl -lpthread -lrt
+
+BINARY = stat.o
+TARGET = stat_tool
+
+all:$(TARGET)
+
+$(TARGET):$(BINARY)
+	$(CXX) -o $(TARGET) $(BINARY) $(LIBS) $(CFLAGS)
+
+stat.o:stat.cpp
+	$(CXX) -c $< -o $@ $(INCLUDE) $(CFLAGS)
+
+clean:
+	@rm -rf $(TARGET) $(BINARY)

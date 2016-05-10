@@ -1,0 +1,8 @@
+统计工具 stat_tool 说明 ( make -f makefile.stat  编译 stat.cpp 获得)
+
+stat_tool 是isgw框架自带的统计功能的相关数据显示/查看的工具。
+Usage: ./stat_tool <clear|print> <stat_file> [desc_file]
+clear : 清理所有数据
+print : 打印相关数据
+stat_file : 指定的 stat 文件，一般在 bin 下面 <app>.stat 
+desc_file : 统计项的描述文件，可选，不配置时直接用 stat 文件中统计项所在的地址下标。
