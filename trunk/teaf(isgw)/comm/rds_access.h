@@ -64,6 +64,12 @@ public:
                         , string &custom_key
                         , string &value);
 
+    // 更新指定key，并原子返回原先的值
+    int get_set(const std::string& key
+                        , const string& custom_key
+                        , const std::string& nvalue
+                        , std::string& ovalue);
+
     //查询指定key下sorted-set数据列表
     int get_sset_list(string dbid
                         , string &ssid

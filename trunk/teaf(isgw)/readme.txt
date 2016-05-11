@@ -1,11 +1,9 @@
-编译安装指导：
-1 编译：进入 svr 目录,  make conf; make      (make clean可以用来清理)
+编译安装指导(目前主要支持 linux 平台)：
+1 编译：进入 svr 目录(样例程序，依赖于mysql，没安装可以删除vip_db_oper.*再编译)，修改makefile依赖的库路径
+  ,执行  make conf; make      (make clean可以用来清理)
 2 安装(可使用install.sh脚本进行自动安装)：建议目录结构为 bin cfg log 
 3 启动 ：使用 start.sh 脚本进行即可 
 4 测试 ：telnet 或者 用 client 目录下的 测试工具 client test.sh 脚本
-
-优化方向：
-1 线程切换的开销是比较大的，后续需要优化。
 
 v3.3d400 2016-04
 1 redis 管理类优化
@@ -283,4 +281,4 @@ v1.6d101 2009-08-25
 1 加入版本说明文件，具体框架的介绍请参考 《商城svr框架设计和使用说明书.doc》
 
 打包命令 :
-tar -czvf isgw_v3.3d300.tgz comm isgw 
+tar -czvf isgw_v3.3d400.tgz isgw

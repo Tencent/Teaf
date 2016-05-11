@@ -13,7 +13,7 @@
 #include "easyace_all.h"
 #include "qmode_msg.h"
 #include "pp_prot.h"
-#include "object_que.h"
+//#include "object_que.h"
 
 #define ISGW_Object_Que ACE_Object_Que
 

@@ -135,12 +135,13 @@ int RdsSvr::sel_database(Handle * &h, int dbid)
         if(h->rc->err!=0)
         {
             ACE_DEBUG((LM_ERROR
-                , "[%D] RdsSvr::get_handle ctx failed,err=%x\n"
-                , h->rc->err));
+                , "[%D] RdsSvr::sel_database failed,dbid=%d,err=%x\n"
+                , dbid, h->rc->err));
             rst_handle(h);
             freeReplyObject(reply);
             return -1;
         }
+        ACE_DEBUG((LM_INFO, "[%D] RdsSvr::sel_database succ,dbid=%d\n", dbid));
         freeReplyObject(reply);
         h->dbid = dbid;
     }
@@ -647,6 +648,86 @@ int RdsSvr::inc_string_val(string dbid,
     return 0;
 }
 
+// 更新指定key，并原子返回原先的值
+int RdsSvr::get_set(const std::string& key
+    , const string& custom_key
+    , const std::string& nvalue
+    , std::string& ovalue)
+{
+    Handle *h;
+    redisReply *reply = NULL;
+    ACE_Guard<ACE_Thread_Mutex> guard(get_handle(h));
+
+    std::string str_key = key;
+    str_key += "-";
+    str_key += custom_key;
+
+    // 填充 cmd 与 key
+    std::vector<std::string> args(3);
+    args[0] = "GETSET";
+    args[1] = str_key;
+    args[2] = nvalue;
+    
+    std::vector<const char *> argv(args.size());
+    std::vector<size_t> argvlen(args.size());
+    for(size_t i = 0;i < args.size();i++)
+    {
+        argv[i] = args[i].data();
+        argvlen[i] = args[i].length();
+    }
+    reply = (redisReply *)redisCommandArgv(h->rc, argv.size(), &(argv[0]), &(argvlen[0]));
+    if(NULL==reply)
+    {
+        ACE_DEBUG((LM_ERROR
+            , "[%D] RdsSvr::get_set exec failed,key=%s\n"
+            , str_key.c_str()
+            ));
+        rst_handle(h);
+        freeReplyObject(reply);
+        return -1;
+    }
+    else if(REDIS_REPLY_ERROR==reply->type||h->rc->err!=0)
+    {
+        ACE_DEBUG((LM_ERROR
+            , "[%D] RdsSvr::get_set reply error,key=%s,err=%s\n"
+            , str_key.c_str()
+            , reply->str
+            ));
+        rst_handle(h);
+        freeReplyObject(reply);
+        return -1;
+    }
+    
+    if(REDIS_REPLY_STRING==reply->type)
+    {
+        ovalue = reply->str;
+    }
+    else if(REDIS_REPLY_NIL==reply->type)
+    {
+        // key不存在，返回空
+        ovalue = "";
+    }
+    else
+    {
+        ACE_DEBUG((LM_ERROR
+            , "[%D] RdsSvr::get_set failed,key=%s,err=%s\n"
+            , str_key.c_str()
+            , reply->str
+            ));
+        freeReplyObject(reply);
+        return -1;
+    }
+    freeReplyObject(reply);
+    
+    ACE_DEBUG((LM_DEBUG
+        , "[%D] RdsSvr::get_set succ,key=%s,ovalue=%s,nvalue=%s\n"
+        , str_key.c_str()
+        , ovalue.c_str()
+        , nvalue.c_str()
+        ));
+    return 0;
+}
+
 //flag=1表示score降序排列,否则score升序排列
 int RdsSvr::get_sset_list(string dbid
                             , string &ssid
@@ -912,6 +993,7 @@ int RdsSvr::set_sset_list(const string& dbid
 
     return 0;
 }
+
 //增量的设置指定每个member的score变化值
 int RdsSvr::inc_sset_list(string dbid, string &ssid, SSPair &elem)
 {        

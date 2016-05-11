@@ -5,10 +5,10 @@ INCLUDE= -I./ -I/usr/local/include/ace -I../easyace/ -I/usr/include/mysql/ -I../
 #ISGW_USE_DLL = 1
 ifdef ISGW_USE_DLL
 LIBS= -L./ -L/usr/local/lib/mysql/ -L../../comm/\
-      /usr/local/lib/libmysqlclient_r.a /usr/local/lib/libACE.a -lcomm -lnsl -lm -lz -lc -ldl -lpthread -lrt -lhiredis#-llua 
+      /usr/local/lib/libACE.a -lnsl -lm -lz -lc -ldl -lpthread -lrt #-llua /usr/local/lib/libmysqlclient_r.a -lhiredis
 else
 LIBS= -L./ -L/usr/local/lib/ -L../../comm/\
-      -static -lmysqlclient_r -lACE -lcomm -lnsl -lm -lz -lc -ldl -lpthread -lrt -lhiredis#-llua
+      -static -lACE -lnsl -lm -lz -lc -ldl -lpthread -lrt #-llua -lmysqlclient_r -lhiredis
 endif
 
 BINARY = $(patsubst %.cpp,%.o,$(wildcard *.cpp))
@@ -35,7 +35,7 @@ conf:
 	ln -s ../comm/cmd_amount_contrl.cpp
 	ln -s ../comm/isgw_task_base.cpp
 	#ln -s ../comm/lua_oper.cpp
-	ln -s ../comm/rds_access.cpp
+	#ln -s ../comm/rds_access.cpp
 	ln -s ../frm/isgw_svrd.cpp
 	ln -s ../frm/isgw_app.cpp
 	ln -s ../frm/isgw_intf.cpp
@@ -50,10 +50,10 @@ conf:
 	ln -s ../easyace/*.cpp ./
 
 clean:
-	@rm -rf ${TARGET} $(BINARY)
+	@rm -r ${TARGET} $(BINARY)
 	
 cleanconf:
-	@rm -rf sys_comm.cpp isgw_uintf.cpp isgw_comm.cpp qmode_msg.cpp \
+	@rm -r sys_comm.cpp isgw_uintf.cpp isgw_comm.cpp qmode_msg.cpp \
 	isgw_svrd.cpp isgw_app.cpp isgw_intf.cpp ace_sock_hdr_base.cpp isgw_ack.cpp isgw_mgr_svc.cpp \
 	stat.cpp ibc_oper_base.cpp ibc_mgr_svc.cpp plat_conn_mgr_ex.cpp plat_conn_mgr_asy.cpp \
 	isgw_cintf.cpp isgw_oper_base.cpp cmd_amount_contrl.cpp isgw_sighdl.cpp asy_task.cpp isgw_task_base.cpp \
