@@ -56,8 +56,9 @@ int Stat::init(const char* file_name, int flag)
         memset(stat_array, 0, file_size_);
         stat_array[0] = MAX_STAT_INDEX+1;
     }
-    state_ = 1; //初始化成功 
-    
+    state_ = 1; //初始化成功
+
+    ACE_DEBUG((LM_INFO,"[%D] Stat init success,lock=0x%x\n", &(lock_.lock()) ));
     return 0;
 }
 

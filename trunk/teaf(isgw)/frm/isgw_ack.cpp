@@ -28,7 +28,7 @@ int ISGWAck::init(int tv)
     ACE_Reactor::instance()->schedule_timer(this, 0, delay, interval);
     ACE_DEBUG((LM_INFO, "[%D] ISGWAck init timer succ,tv=%d\n", tv));
 #endif
-    ACE_DEBUG((LM_INFO, "[%D] ISGWAck init succ\n"));
+    ACE_DEBUG((LM_INFO, "[%D] ISGWAck init succ,my lock=0x%x\n", &(queue_lock_.lock())));
     return 0;
 }
 
@@ -243,11 +243,18 @@ uint32_t ISGWAck::statisitc(PPMsg* ack_msg)
     struct timeval t_end;
     gettimeofday(&t_end, NULL);
     ack_msg->total_span = EASY_UTIL::get_span(&ack_msg->tv_time, &t_end);
-
+    
+#ifdef BINARY_PROTOCOL
+    // 二进制协议需要统计请求量
+    ReprtInfo info(ack_msg->cmd, 1, 0, ack_msg->total_span, ack_msg->procs_span);
+    if(ack_msg->ret<0) info.failed_count = 1;
+    Stat::instance()->add_stat(&info);
+#else
     //此处只统计耗时和逻辑返回的失败数据，不统计请求量(入口处已经统计)
     ReprtInfo info(ack_msg->cmd, 0, 0, ack_msg->total_span, ack_msg->procs_span);
     if(ack_msg->ret<0) info.failed_count = 1;
     Stat::instance()->add_stat(&info);
+#endif
 
     ACE_DEBUG((LM_NOTICE,
         "[%D] ISGWAck statisitc finish,cmd=%d,time_diff=%d,,sock_fd=%u,prot=%u"

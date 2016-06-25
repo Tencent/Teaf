@@ -105,7 +105,8 @@ int PlatConnMgrAsy::init(const char *section)
         return -1;
     }
     
-    ACE_DEBUG((LM_INFO, "[%D] PlatConnMgrAsy start to init conn,ip_num=%d,section=%s\n", ip_num_, section_));
+    ACE_DEBUG((LM_INFO, "[%D] PlatConnMgrAsy start to init conn,ip_num=%d,section=%s,lock=0x%x\n"
+            , ip_num_, section_, &(conn_mgr_lock_.lock()) ));
     for(int i=0; i<ip_num_; i++)
     {
         if (init_conn(i) !=0)
@@ -156,8 +157,8 @@ int PlatConnMgrAsy::init_conn(int ip_idx, const char *ip, int port)
     }
 	
     ACE_DEBUG((LM_INFO, "[%D] PlatConnMgrAsy start to init conn"
-        ",ip=%s,port=%d,ip_idx=%d\n"
-        , ip_[ip_idx], port_, ip_idx));
+        ",ip=%s,port=%d,ip_idx=%d,lock=0x%x\n"
+        , ip_[ip_idx], port_, ip_idx, &(conn_lock_[ip_idx].lock()) ));
 
     // 没有配置的 ip 和端口 
     if (strlen(ip_[ip_idx]) == 0 || port_ == 0)

@@ -9,6 +9,9 @@ QModeMsg::QModeMsg(const int len, const char* body, unsigned int sock_fd, unsign
     : sock_fd_(sock_fd), sock_seq_(sock_seq), msg_seq_(msg_seq), prot_(prot), time_(time)
     , sock_ip_(sock_ip), sock_port_(port)
 {
+    cmd_ = 0;
+    uin_ = 0;
+    rflag_ = 0;
     memcpy(body_, body, len);
     body_len_ = len;
 }

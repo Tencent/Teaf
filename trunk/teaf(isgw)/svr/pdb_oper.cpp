@@ -38,7 +38,7 @@ int PdbOper::process(QModeMsg& req, char* ack, int& ack_len)
         case CMD_QUERY_VIP:
         {
             VipDbOper oper;
-            ret = oper.get_vip_info(req, ack); //
+            ret = oper.get_vip_info(req, ack, ack_len); //
         }
         break;
 #endif

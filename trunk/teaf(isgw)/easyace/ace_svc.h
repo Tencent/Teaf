@@ -56,7 +56,7 @@ protected:
 
 protected:
     ACESVC_MSGQ queue_;
-    ACE_Thread_Mutex queue_lock_;
+    //ACE_Thread_Mutex queue_lock_;
     ACE_Time_Value time_out_;
     
     static ACESvc<IN_MSG_TYPE, OUT_MSG_TYPE> *instance_;
@@ -84,11 +84,8 @@ int ACESvc<IN_MSG_TYPE, OUT_MSG_TYPE>::init()
     //active num thread
     activate(THR_NEW_LWP | THR_JOINABLE, DEFAULT_THREADS);
 
-    ACE_DEBUG((LM_INFO, "[%D] ACESvc init succ,threads=%d,inner lock=0x%x,my lock=0x%x\n"
-        , DEFAULT_THREADS
-        , &(queue_.lock())
-        , &(queue_lock_.lock())
-        ));
+    ACE_DEBUG((LM_INFO, "[%D] ACESvc init succ,threads=%d,inner lock=0x%x\n"
+        , DEFAULT_THREADS, &(queue_.lock()) ));
     
     ACE_DEBUG((LM_TRACE,
 		"[%D] out ACESvc::init\n"

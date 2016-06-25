@@ -158,9 +158,11 @@ int PlatConnMgrEx::init(const char *section, const std::vector<std::string> *ip_
     ACE_DEBUG((LM_INFO, "[%D] PlatConnMgrEx start to init conn"
         ",ip_num=%d"
         ",conn_nums=%d"
+        ",lock=0x%x"
         "\n"
         , ip_num_
         , conn_nums_
+        ,&(conn_mgr_lock_.lock())
         )); 
     for(int i=0; i<ip_num_; i++)
     {
@@ -185,7 +187,7 @@ int PlatConnMgrEx::init_conn(int index, int ip_idx, const char *ip, int port)
     if (index<0 || index>=POOL_CONN_MAX || ip_idx<0 || ip_idx >=IP_NUM_MAX)
     {
         ACE_DEBUG((LM_ERROR, "[%D] PlatConnMgrEx init conn failed,para is invalid"
-            ",index=%d,ip_idx=%d\n", index, ip_idx));
+            ",section=%s,index=%d,ip_idx=%d\n", section_, index, ip_idx));
         Stat::instance()->incre_stat(STAT_CODE_CONN_FAIL);
         return -1;
     }
@@ -268,8 +270,8 @@ int PlatConnMgrEx::send(const void * buf, int len, const unsigned int uin)
     {
         ACE_DEBUG((LM_ERROR, "[%D] PlatConnMgrEx get conn failed"
             ",can't get a useful conn"
-            ",index=%d,ip_idx=%d,uin=%u\n"
-            , index, ip_idx, uin
+            ",section=%s,index=%d,ip_idx=%d,uin=%u\n"
+            , section_, index, ip_idx, uin
             ));
         return -1;
     }
@@ -278,8 +280,8 @@ int PlatConnMgrEx::send(const void * buf, int len, const unsigned int uin)
     {
         ACE_DEBUG((LM_ERROR, "[%D] PlatConnMgrEx send failed"
             ",conn is null"
-            ",index=%d,ip_idx=%d,uin=%u\n"
-            , index, ip_idx, uin
+            ",section=%s,index=%d,ip_idx=%d,uin=%u\n"
+            , section_, index, ip_idx, uin
             ));
         return -1;
     }
@@ -291,7 +293,8 @@ int PlatConnMgrEx::send(const void * buf, int len, const unsigned int uin)
     if (ret <= 0) //异常或者对端关闭
     {
         ACE_DEBUG((LM_ERROR, "[%D] PlatConnMgrEx send msg failed"
-            ",index=%d,ip_idx=%d,ret=%d,uin=%u,errno=%d\n", index, ip_idx, ret, uin, errno));
+            ",section=%s,index=%d,ip_idx=%d,ret=%d,uin=%u,errno=%d\n"
+            , section_, index, ip_idx, ret, uin, errno));
         //关闭连接
         fini(index, ip_idx);
         Stat::instance()->incre_stat(STAT_CODE_SEND_FAIL);
@@ -313,8 +316,8 @@ int PlatConnMgrEx::send(const void * buf, int len, const std::string& ip)
     {
         ACE_DEBUG((LM_ERROR, "[%D] PlatConnMgrEx get conn failed"
             ",can't get a useful conn"
-            ",index=%d,ip_idx=%d,ip=%s\n"
-            , index, ip_idx, ip.c_str()
+            ",section=%s,index=%d,ip_idx=%d,ip=%s\n"
+            , section_, index, ip_idx, ip.c_str()
             ));
         return -1;
     }
@@ -323,8 +326,8 @@ int PlatConnMgrEx::send(const void * buf, int len, const std::string& ip)
     {
         ACE_DEBUG((LM_ERROR, "[%D] PlatConnMgrEx send failed"
             ",conn is null"
-            ",index=%d,ip_idx=%d,ip=%s\n"
-            , index, ip_idx, ip.c_str()
+            ",section=%s,index=%d,ip_idx=%d,ip=%s\n"
+            , section_, index, ip_idx, ip.c_str()
             ));
         return -1;
     }
@@ -336,7 +339,8 @@ int PlatConnMgrEx::send(const void * buf, int len, const std::string& ip)
     if (ret <= 0) //异常或者对端关闭
     {
         ACE_DEBUG((LM_ERROR, "[%D] PlatConnMgrEx send msg failed"
-            ",index=%d,ip_idx=%d,ret=%d,ip=%s,errno=%d\n", index, ip_idx, ret, ip.c_str(), errno));
+            ",section=%s,index=%d,ip_idx=%d,ret=%d,ip=%s,errno=%d\n"
+            , section_, index, ip_idx, ret, ip.c_str(), errno));
         //关闭连接
         fini(index, ip_idx);
         Stat::instance()->incre_stat(STAT_CODE_SEND_FAIL);
@@ -360,8 +364,8 @@ int PlatConnMgrEx::send_recv(const void * send_buf, int send_len
     {
         ACE_DEBUG((LM_ERROR, "[%D] PlatConnMgrEx get conn failed"
             ",can't get a useful conn"
-            ",index=%d,ip_idx=%d,uin=%u\n"
-            , index, ip_idx, uin
+            ",section=%s,index=%d,ip_idx=%d,uin=%u\n"
+            , section_, index, ip_idx, uin
             ));
         return -1;
     }
@@ -370,8 +374,8 @@ int PlatConnMgrEx::send_recv(const void * send_buf, int send_len
     {
         ACE_DEBUG((LM_ERROR, "[%D] PlatConnMgrEx send_recv failed"
             ",conn is null"
-            ",index=%d,ip_idx=%d,uin=%u\n"
-            , index, ip_idx, uin
+            ",section=%s,index=%d,ip_idx=%d,uin=%u\n"
+            , section_, index, ip_idx, uin
             ));
         return -1;
     }
@@ -389,10 +393,10 @@ int PlatConnMgrEx::send_recv(const void * send_buf, int send_len
         ACE_DEBUG((LM_INFO, "[%D] PlatConnMgrEx send_recv connection close detected,"
             "uin=%u,ip=%s,index=%d\n", uin, ip_[ip_idx], index));
         init_conn(index, ip_idx);
-	 if(conn_[ip_idx][index] == NULL)
+        if(conn_[ip_idx][index] == NULL)
         {
-            ACE_DEBUG((LM_ERROR, "[%D] PlatConnMgrEx send_recv reconnect failed,"
-                "index=%d,ip_idx=%d\n", index, ip_idx));
+            ACE_DEBUG((LM_ERROR, "[%D] PlatConnMgrEx send_recv reconnect failed"
+                ",section=%s,index=%d,ip_idx=%d\n", section_, index, ip_idx));
             return -1;
         }
     }
@@ -403,7 +407,8 @@ int PlatConnMgrEx::send_recv(const void * send_buf, int send_len
     if (ret <= 0) //异常或者对端关闭
     {
         ACE_DEBUG((LM_ERROR, "[%D] PlatConnMgrEx send_recv send msg failed"
-            ",index=%d,ip_idx=%d,ret=%d,uin=%u,errno=%d\n", index, ip_idx, ret, uin, errno));
+            ",section=%s,index=%d,ip_idx=%d,ret=%d,uin=%u,errno=%d\n"
+            , section_, index, ip_idx, ret, uin, errno));
         //关闭连接
         fini(index, ip_idx);
         Stat::instance()->incre_stat(STAT_CODE_SEND_FAIL);
@@ -414,7 +419,8 @@ int PlatConnMgrEx::send_recv(const void * send_buf, int send_len
     if (ret <= 0) //异常或者对端关闭
     {
         ACE_DEBUG((LM_ERROR, "[%D] PlatConnMgrEx send_recv recv msg failed"
-            ",index=%d,ip_idx=%d,ret=%d,uin=%u,errno=%d\n", index, ip_idx, ret, uin, errno));
+            ",section=%s,index=%d,ip_idx=%d,ret=%d,uin=%u,errno=%d\n"
+            , section_, index, ip_idx, ret, uin, errno));
         //关闭连接
         fini(index, ip_idx);
         Stat::instance()->incre_stat(STAT_CODE_RECV_FAIL);
@@ -440,8 +446,8 @@ int PlatConnMgrEx::send_recv_ex(const void * send_buf, int send_len
     {
         ACE_DEBUG((LM_ERROR, "[%D] PlatConnMgrEx get conn failed"
             ",can't get a useful conn"
-            ",index=%d,ip_idx=%d,uin=%u\n"
-            , index, ip_idx, uin
+            ",section=%s,index=%d,ip_idx=%d,uin=%u\n"
+            , section_, index, ip_idx, uin
             ));
         return -1;
     }
@@ -453,8 +459,8 @@ int PlatConnMgrEx::send_recv_ex(const void * send_buf, int send_len
     {
         ACE_DEBUG((LM_ERROR, "[%D] PlatConnMgrEx send_recv_ex failed"
             ",conn is null"
-            ",index=%d,ip_idx=%d,uin=%u\n"
-            , index, ip_idx, uin
+            ",section=%s,index=%d,ip_idx=%d,uin=%u\n"
+            , section_, index, ip_idx, uin
             ));
         return -1;
     }
@@ -475,8 +481,8 @@ int PlatConnMgrEx::send_recv_ex(const void * send_buf, int send_len
         init_conn(index, ip_idx);
     	if(conn_[ip_idx][index] == NULL)
     	{
-    		ACE_DEBUG((LM_ERROR, "[%D] PlatConnMgrEx send_recv_ex reconnect failed,"
-                "index=%d,ip_idx=%d\n", index, ip_idx));
+    		ACE_DEBUG((LM_ERROR, "[%D] PlatConnMgrEx send_recv_ex reconnect failed"
+                ",section=%s,index=%d,ip_idx=%d\n", section_, index, ip_idx));
     		return -1;
     	}
     }
@@ -487,7 +493,8 @@ int PlatConnMgrEx::send_recv_ex(const void * send_buf, int send_len
     if (ret <= 0) //异常或者对端关闭
     {
         ACE_DEBUG((LM_ERROR, "[%D] PlatConnMgrEx send_recv_ex send msg failed"
-            ",index=%d,ip_idx=%d,ret=%d,uin=%u,errno=%d\n", index, ip_idx, ret, uin, errno));
+            ",section=%s,index=%d,ip_idx=%d,ret=%d,uin=%u,errno=%d\n"
+            , section_, index, ip_idx, ret, uin, errno));
         //关闭连接，清理状态
         fini(index, ip_idx);
         Stat::instance()->incre_stat(STAT_CODE_SEND_FAIL);
@@ -500,7 +507,8 @@ int PlatConnMgrEx::send_recv_ex(const void * send_buf, int send_len
     if (ret <= 0) //异常或者对端关闭
     {
         ACE_DEBUG((LM_ERROR, "[%D] PlatConnMgrEx send_recv_ex recv msg failed"
-            ",index=%d,ip_idx=%d,ret=%d,uin=%u,errno=%d\n", index, ip_idx, ret, uin, errno));
+            ",section=%s,index=%d,ip_idx=%d,ret=%d,uin=%u,errno=%d\n"
+            , section_, index, ip_idx, ret, uin, errno));
         //关闭连接，清理状态
         fini(index, ip_idx);
         Stat::instance()->incre_stat(STAT_CODE_RECV_FAIL);
@@ -521,7 +529,8 @@ int PlatConnMgrEx::send_recv_ex(const void * send_buf, int send_len
             {
                 ACE_DEBUG((LM_ERROR, "[%D] [%N,%l]PlatConnMgrEx send_recv_ex"
                     " recv msg failed"
-                    ",index=%d,ip_idx=%d,ret=%d,uin=%u,errno=%d\n", index, ip_idx, ret, uin, errno));
+                    ",section=%s,index=%d,ip_idx=%d,ret=%d,uin=%u,errno=%d\n"
+                    , section_, index, ip_idx, ret, uin, errno));
                 //关闭连接，清理状态
                 fini(index, ip_idx);
                 Stat::instance()->incre_stat(STAT_CODE_RECV_FAIL);
@@ -550,8 +559,8 @@ int PlatConnMgrEx::recv(void * buf, int len, const unsigned int uin)
     {
         ACE_DEBUG((LM_ERROR, "[%D] PlatConnMgrEx get conn failed"
             ",can't get a useful conn"
-            ",index=%d,ip_idx=%d,uin=%u\n"
-            , index, ip_idx, uin
+            ",section=%s,index=%d,ip_idx=%d,uin=%u\n"
+            , section_, index, ip_idx, uin
             ));
         return -1;
     }
@@ -560,8 +569,8 @@ int PlatConnMgrEx::recv(void * buf, int len, const unsigned int uin)
     {
         ACE_DEBUG((LM_ERROR, "[%D] PlatConnMgrEx recv failed"
             ",conn is null"
-            ",index=%d,ip_idx=%d,uin=%u\n"
-            , index, ip_idx, uin
+            ",section=%s,index=%d,ip_idx=%d,uin=%u\n"
+            , section_, index, ip_idx, uin
             ));
         return -1;
     }
@@ -573,7 +582,8 @@ int PlatConnMgrEx::recv(void * buf, int len, const unsigned int uin)
     if (ret <= 0) //异常或者对端关闭
     {
         ACE_DEBUG((LM_ERROR, "[%D] PlatConnMgrEx recv msg failed"
-            ",index=%d,ip_idx=%d,ret=%d,uin=%u,errno=%d\n", index, ip_idx, ret, uin, errno));
+            ",section=%s,index=%d,ip_idx=%d,ret=%d,uin=%u,errno=%d\n"
+            , section_, index, ip_idx, ret, uin, errno));
         //关闭连接
         fini(index, ip_idx);
         Stat::instance()->incre_stat(STAT_CODE_RECV_FAIL);
@@ -593,7 +603,7 @@ ACE_SOCK_Stream* PlatConnMgrEx::get_conn(int index, int & ip_idx) //从连接池获取
 	if (index<0 || index>=POOL_CONN_MAX || ip_idx<0 || ip_idx >=IP_NUM_MAX)
     {
         ACE_DEBUG((LM_ERROR, "[%D] PlatConnMgrEx get conn failed, para is invalid"
-            ",index=%d,ip_idx=%d\n", index, ip_idx));
+            ",section=%s,index=%d,ip_idx=%d\n", section_, index, ip_idx));
         return NULL;
     }
     
@@ -604,11 +614,13 @@ ACE_SOCK_Stream* PlatConnMgrEx::get_conn(int index, int & ip_idx) //从连接池获取
     )
     {
         ACE_DEBUG((LM_TRACE, "[%D] PlatConnMgrEx get conn failed,because of strategy"
+            ",section=%s"
             ",index=%d"
             ",ip_idx=%d"
             ",fail_times=%d"
             ",last_fail_time=%d"
-			"\n"	
+			"\n"
+            , section_
             , index
             , ip_idx
             , fail_times_[ip_idx]
@@ -651,8 +663,8 @@ int PlatConnMgrEx::fini(int index, int ip_idx)
         conn_[ip_idx][index]->close();
         delete conn_[ip_idx][index];
         conn_[ip_idx][index] = NULL;
-        conn_use_flag_[ip_idx][index] = 0;
     }
+    conn_use_flag_[ip_idx][index] = 0;
     
     ACE_DEBUG((LM_INFO, "[%D] PlatConnMgrEx fini conn succ"
 		",ip=%s"
@@ -705,7 +717,7 @@ unsigned int PlatConnMgrEx::get_index(int ip_idx, unsigned uin)
     //如果没找到，则仍然返回刚才随机的，因为连接使用时本身会加锁，不会有太大影响
     if(i == conn_nums_)
     {
-        ACE_DEBUG((LM_ERROR, "[%D] PlatConnMgrEx get_index conn runout"
+        ACE_DEBUG((LM_ERROR, "[%D] PlatConnMgrEx get_index conn failed,runout"
     		",ip=%s"
     		",port=%d"
     		",index=%d"

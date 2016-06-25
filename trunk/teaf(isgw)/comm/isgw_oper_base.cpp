@@ -267,19 +267,19 @@ int IsgwOperBase::reload_config()
 
 int IsgwOperBase::time_out()
 {
-    ACE_DEBUG((LM_INFO, "[%D] IsgwOperBase::time_out\n"));
+    ACE_DEBUG((LM_DEBUG, "[%D] IsgwOperBase::time_out\n"));
     return 0;
 }
 
 int IsgwOperBase::handle_close(int fd)
 {
-    ACE_DEBUG((LM_INFO, "[%D] IsgwOperBase::handle_close\n"));
+    ACE_DEBUG((LM_DEBUG, "[%D] IsgwOperBase::handle_close,fd=%d\n",fd));
     return 0;
 }
 
 int IsgwOperBase::wait_task()
 {
-    ACE_DEBUG((LM_INFO, "[%D] IsgwOperBase::wait_task\n"));
+    ACE_DEBUG((LM_DEBUG, "[%D] IsgwOperBase::wait_task\n"));
     return 0;
 }
 

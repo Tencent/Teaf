@@ -1,10 +1,10 @@
 CXX=g++ -g
 CFLAGS= -DPDB -DADMIN_OPER #-DISGW_USE_LUA #-DISGW_USE_ASY #-DISGW_USE_IBC  -DISGW_USE_DLL -DVIP_OPER -DWEBGAME_OPER 
-INCLUDE= -I./ -I/usr/local/include/ace -I../easyace/ -I/usr/include/mysql/ -I../comm/ -I../frm -I../../comm/
+INCLUDE= -I/Users/away/Documents/software/ACE_wrappers -I./ -I/usr/local/include/ace -I../easyace/ -I/usr/local/include/mysql/ -I../comm/ -I../frm -I../../comm/
 
 #ISGW_USE_DLL = 1
 ifdef ISGW_USE_DLL
-LIBS= -L./ -L/usr/local/lib/mysql/ -L../../comm/\
+LIBS= -L./ -L/usr/local/lib/ -L../../comm/\
       /usr/local/lib/libACE.a -lnsl -lm -lz -lc -ldl -lpthread -lrt #-llua /usr/local/lib/libmysqlclient_r.a -lhiredis
 else
 LIBS= -L./ -L/usr/local/lib/ -L../../comm/\
@@ -53,8 +53,8 @@ clean:
 	@rm -r ${TARGET} $(BINARY)
 	
 cleanconf:
-	@rm -r sys_comm.cpp isgw_uintf.cpp isgw_comm.cpp qmode_msg.cpp \
+	@rm -r sys_comm.cpp isgw_uintf.cpp isgw_comm.cpp qmode_msg.cpp plat_db_conn.cpp plat_db_access.cpp \
 	isgw_svrd.cpp isgw_app.cpp isgw_intf.cpp ace_sock_hdr_base.cpp isgw_ack.cpp isgw_mgr_svc.cpp \
-	stat.cpp ibc_oper_base.cpp ibc_mgr_svc.cpp plat_conn_mgr_ex.cpp plat_conn_mgr_asy.cpp \
+	stat.cpp ibc_oper_base.cpp ibc_mgr_svc.cpp plat_conn_mgr_ex.cpp plat_conn_mgr_asy.cpp rds_access.cpp \
 	isgw_cintf.cpp isgw_oper_base.cpp cmd_amount_contrl.cpp isgw_sighdl.cpp asy_task.cpp isgw_task_base.cpp \
 	ace_app.cpp ace_conf.cpp ace_object_que.cpp ace_svc.cpp lua_oper.cpp rds_access.cpp ace_object_array.cpp

@@ -152,8 +152,8 @@ int PlatDbAccess::init(const char *host, const char *user, const char *passwd, i
     db_conn_[index] = new PlatDbConn();
     if (db_conn_[index]->connect(host, user, passwd, port, time_out_) != 0)
     {
-        ACE_DEBUG((LM_ERROR, "[%D] PlatDbAccess connect db failed, errmsg=%s\n"
-            , db_conn_[index]->get_err_msg()));
+        ACE_DEBUG((LM_ERROR, "[%D] PlatDbAccess connect db failed,host=%s,errmsg=%s\n"
+            , host, db_conn_[index]->get_err_msg()));
         fini(index);
         return -1;
     }
@@ -233,6 +233,10 @@ int PlatDbAccess::fini(int index)
 int PlatDbAccess::exec_query(const char* sql, MYSQL_RES*& result_set
     , unsigned int uin)
 {
+    //增加 mysql 操作计时
+    struct timeval s_start;
+    gettimeofday(&s_start, NULL);
+
     int index = get_conn_index(uin);    
     ACE_Guard<ACE_Thread_Mutex> guard(db_conn_lock_[index]); 
     // 标识是否在使用 如果不使用了 请注意清理 
@@ -243,7 +247,7 @@ int PlatDbAccess::exec_query(const char* sql, MYSQL_RES*& result_set
     PlatDbConn* db_conn = get_db_conn(index);
     if (db_conn == NULL)
     {
-        ACE_DEBUG((LM_ERROR, "[%D] PlatDbAccess get db conn failed\n"));
+        ACE_DEBUG((LM_ERROR, "[%D] PlatDbAccess get db conn failed,section=%s,index=%d\n", section_, index));
         db_conn_flag_[index] = 0;
         return -1;
     }
@@ -252,8 +256,8 @@ int PlatDbAccess::exec_query(const char* sql, MYSQL_RES*& result_set
     ret = db_conn->exec_query(sql, result_set);
     if (ret != 0)
     {
-        ACE_DEBUG((LM_ERROR, "[%D] PlatDbAccess exec query failed,idx=%d,%s\n"
-            , index, db_conn->get_err_msg() ));
+        ACE_DEBUG((LM_ERROR, "[%D] PlatDbAccess exec query failed,section=%s,idx=%d,%s\n"
+            , section_, index, db_conn->get_err_msg() ));
         if(ret == -1) // -1 表示服务器连接断开，尝试重连 try again
         {
             ret = db_conn->exec_query(sql, result_set);
@@ -264,12 +268,16 @@ int PlatDbAccess::exec_query(const char* sql, MYSQL_RES*& result_set
         }
     }
     db_conn_flag_[index] = 0;
-    return stat_return(ret);
+    return stat_return(ret, &s_start, sql);
 }
 
 int PlatDbAccess::exec_multi_query(const char* sql, vector<MYSQL_RES*>& result_set_list
     , unsigned int uin)
 {
+    //增加 mysql 操作计时
+    struct timeval s_start;
+    gettimeofday(&s_start, NULL);
+
     int index = get_conn_index(uin);    
     ACE_Guard<ACE_Thread_Mutex> guard(db_conn_lock_[index]); 
     // 标识是否在使用 如果不使用了 请注意清理 
@@ -280,7 +288,7 @@ int PlatDbAccess::exec_multi_query(const char* sql, vector<MYSQL_RES*>& result_s
     PlatDbConn* db_conn = get_db_conn(index);
     if (db_conn == NULL)
     {
-        ACE_DEBUG((LM_ERROR, "[%D] PlatDbAccess get db conn failed\n"));
+        ACE_DEBUG((LM_ERROR, "[%D] PlatDbAccess get db conn failed,section=%s,index=%d\n", section_, index));
         db_conn_flag_[index] = 0;
         return -1;
     }
@@ -289,8 +297,8 @@ int PlatDbAccess::exec_multi_query(const char* sql, vector<MYSQL_RES*>& result_s
     ret = db_conn->exec_multi_query(sql, result_set_list);
     if (ret != 0)
     {
-        ACE_DEBUG((LM_ERROR, "[%D] PlatDbAccess exec query failed,idx=%d,%s\n"
-            , index, db_conn->get_err_msg() ));
+        ACE_DEBUG((LM_ERROR, "[%D] PlatDbAccess exec query failed,section=%s,idx=%d,%s\n"
+            , section_, index, db_conn->get_err_msg() ));
         if(ret == -1) // -1 表示服务器连接断开，尝试重连 try again
         {
             ret = db_conn->exec_multi_query(sql, result_set_list);
@@ -301,7 +309,7 @@ int PlatDbAccess::exec_multi_query(const char* sql, vector<MYSQL_RES*>& result_s
         }
     }
     db_conn_flag_[index] = 0;
-    return stat_return(ret);
+    return stat_return(ret, &s_start, sql);
 }
 
 //使用的时候连接状态db_conn_flag_ 设置为 1   使用完设置为 0 
@@ -309,6 +317,10 @@ int PlatDbAccess::exec_multi_query(const char* sql, vector<MYSQL_RES*>& result_s
 int PlatDbAccess::exec_update(const char* sql, int& last_insert_id
 	, int& affected_rows, unsigned int uin)
 {
+    //增加 mysql 操作计时
+    struct timeval s_start;
+    gettimeofday(&s_start, NULL);
+
     int index = get_conn_index(uin);
     ACE_Guard<ACE_Thread_Mutex> guard(db_conn_lock_[index]); 
     // 标识是否在使用 如果不使用了 请注意清理 
@@ -319,7 +331,7 @@ int PlatDbAccess::exec_update(const char* sql, int& last_insert_id
     PlatDbConn* db_conn = get_db_conn(index);
     if (db_conn == NULL)
     {
-        ACE_DEBUG((LM_ERROR, "[%D] PlatDbAccess get db conn failed\n"));
+        ACE_DEBUG((LM_ERROR, "[%D] PlatDbAccess get db conn failed,section=%s,index=%d\n", section_, index));
 		db_conn_flag_[index] = 0;
         return -1;
     }
@@ -328,8 +340,8 @@ int PlatDbAccess::exec_update(const char* sql, int& last_insert_id
     ret = db_conn->exec_update(sql, last_insert_id, affected_rows);
     if (ret != 0)
     {
-        ACE_DEBUG((LM_ERROR, "[%D] PlatDbAccess exec update failed,ret=%d,%s,try again\n"
-            , ret, db_conn->get_err_msg() ));
+        ACE_DEBUG((LM_ERROR, "[%D] PlatDbAccess exec update failed,section=%s,ret=%d,%s,try again\n"
+            , section_, ret, db_conn->get_err_msg() ));
         if(ret == -1) // -1 表示服务器连接断开，尝试重连 try again
         {
             ret = db_conn->exec_update(sql, last_insert_id, affected_rows);
@@ -340,12 +352,16 @@ int PlatDbAccess::exec_update(const char* sql, int& last_insert_id
         }
     }
     db_conn_flag_[index] = 0;
-    return stat_return(ret);
+    return stat_return(ret, &s_start, sql);
 }
 
 int PlatDbAccess::exec_trans(const vector<string>& sqls, int & last_insert_id
     , int & affected_rows, unsigned int uin)
 {
+    //增加 mysql 操作计时
+    struct timeval s_start;
+    gettimeofday(&s_start, NULL);
+
     int index = get_conn_index(uin);
     ACE_Guard<ACE_Thread_Mutex> guard(db_conn_lock_[index]); 
     // 标识是否在使用 如果不使用了 请注意清理 
@@ -356,7 +372,7 @@ int PlatDbAccess::exec_trans(const vector<string>& sqls, int & last_insert_id
     PlatDbConn* db_conn = get_db_conn(index);
     if (db_conn == NULL)
     {
-        ACE_DEBUG((LM_ERROR, "[%D] PlatDbAccess get db conn failed\n"));
+        ACE_DEBUG((LM_ERROR, "[%D] PlatDbAccess get db conn failed,index=%d\n", index));
 		db_conn_flag_[index] = 0;
         return -1;
     }
@@ -376,7 +392,7 @@ int PlatDbAccess::exec_trans(const vector<string>& sqls, int & last_insert_id
         }
     }
     db_conn_flag_[index] = 0;
-    return stat_return(ret);
+    return stat_return(ret, &s_start);
 }
 
 int PlatDbAccess::free_result(MYSQL_RES*& game_res)
@@ -411,11 +427,13 @@ PlatDbConn* PlatDbAccess::get_db_conn(int index) //从连接池获取一个连接
         && (time(0) - last_fail_time_) < recon_interval_ //时间间隔小于重连时间间隔 
     )
     {
-        ACE_DEBUG((LM_TRACE, "[%D] PlatDbAccess get conn failed,because of strategy"
+        ACE_DEBUG((LM_ERROR, "[%D] PlatDbAccess get conn failed,because of strategy"
+            ",db_host=%s"
             ",index=%d"
             ",fail_times=%d"
             ",last_fail_time=%d"
-			"\n" 
+			"\n"
+            , db_host_
             , index
             , fail_times_
             , last_fail_time_
@@ -481,16 +499,32 @@ unsigned int PlatDbAccess::get_conn_index(unsigned int uin)
     
 }
 
-int32_t PlatDbAccess::stat_return(const int32_t result)
+int32_t PlatDbAccess::stat_return(const int32_t result, timeval* start, const char* sql)
 {
     if(result == CR_COMMANDS_OUT_OF_SYNC
-        || result == 1146 /* 表不存在 */
-        || result == 1054 /* 字段不匹配 */
-        || result == 1064) /* 语法错误 */
+        || result == 1146 // 表不存在
+        || result == 1054 // 字段不匹配
+        || result == 1064 // 语法错误
+        || result == 1046 // db 不存在
+    )
     {
         ACE_DEBUG((LM_ERROR, "[%D] PlatDbAccess stat_return failed"
             ",section=%s,result=%d\n", section_, result));
         Stat::instance()->incre_stat(STAT_CODE_DB_CRITICAL_ERROR);
+    }
+
+    timeval end;
+    gettimeofday(&end, NULL);
+    unsigned diff = EASY_UTIL::get_span(start, &end);
+    if (diff > 2000) //单位 0.1 ms
+    {
+        char tmp_sql[3900] = {0}; 
+        snprintf(tmp_sql, sizeof(tmp_sql)-1, "%s\n",  sql);
+        strncat(tmp_sql, "\n", 1);
+        
+        ACE_DEBUG((LM_ERROR, "[%D] PlatDbAccess exec sql too slow"
+                ",section=%s,diff=%d,sql=%s\n", section_, diff, tmp_sql));
+        Stat::instance()->incre_stat(STAT_CODE_DB_TIMEOUT);
     }
     
     return result;

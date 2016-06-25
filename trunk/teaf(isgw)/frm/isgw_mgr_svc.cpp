@@ -124,11 +124,8 @@ int ISGWMgrSvc::init()
 	//激活线程
     activate(THR_NEW_LWP | THR_JOINABLE, threads);
 
-    ACE_DEBUG((LM_INFO,
-    	"[%D] ISGWMgrSvc init succ,inner lock=0x%x,out lock=0x%x\n"
-    	, &(queue_.lock())
-        , &(queue_lock_.lock())
-    	));
+    ACE_DEBUG((LM_INFO,"[%D] ISGWMgrSvc init succ,inner lock=0x%x,conn_mgr_lock=0x%x\n"
+            , &(queue_.lock()), &(conn_mgr_lock_.lock()) ));
     return 0;
 }
 
@@ -246,23 +243,25 @@ PPMsg* ISGWMgrSvc::process(PPMsg*& ppmsg)
 
     ACE_DEBUG((LM_TRACE, "[%D] ISGWMgrSvc (%u:%u) process start\n", threadid, pid));
 
-    //把请求转换成qmode消息方便操作
+
     //二进制需要传入长度
-    #ifdef BINARY_PROTOCOL
+    //二进制协议不知道命令字，默认为0，无法在入口统计命令数
+#ifdef BINARY_PROTOCOL
     QModeMsg qmode_req(ppmsg->msg_len, ppmsg->msg, ppmsg->sock_fd, ppmsg->sock_seq
         , ppmsg->seq_no, ppmsg->protocol, (unsigned int)ppmsg->tv_time.tv_sec, ppmsg->sock_ip, ppmsg->sock_port);
-    #else
+#else
     QModeMsg qmode_req(ppmsg->msg, ppmsg->sock_fd, ppmsg->sock_seq
         , ppmsg->seq_no, ppmsg->protocol, (unsigned int)ppmsg->tv_time.tv_sec, ppmsg->sock_ip, ppmsg->sock_port);
-    #endif
-    qmode_req.set_tvtime(&(ppmsg->tv_time));
 
     ppmsg->cmd = qmode_req.get_cmd();
-    ppmsg->msg_len = 0;
+    
     //上报请求量统计 ，此处只统计请求量，不包含其他指标
     ReprtInfo info(ppmsg->cmd, 1, 0, 0, 0);
     Stat::instance()->add_stat(&info);
-    
+#endif
+    qmode_req.set_tvtime(&(ppmsg->tv_time));
+    ppmsg->msg_len = 0;
+
     //回收请求消息资源
     //ISGW_Object_Que<PriProReq>::instance()->enqueue(pp_req, pp_req->index);
     //pp_req = NULL;
@@ -297,7 +296,7 @@ PPMsg* ISGWMgrSvc::process(PPMsg*& ppmsg)
     if (ret != 0)
     {
         ppmsg->ret = ret;
-        // 超时则返回原消息 并且 result 为 ret 的值 
+        // 返回原消息 并且 result 为 ret 的值
         snprintf(ppmsg->msg, MAX_INNER_MSG_LEN, "%s=%d&%s%s"
             , FIELD_NAME_RESULT, ret, qmode_req.get_body()
             , MSG_SEPARATOR);

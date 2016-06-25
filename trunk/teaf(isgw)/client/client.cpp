@@ -17,7 +17,7 @@ int ACE_TMAIN(int argc, ACE_TCHAR *argv[])
         return 1;
     }
         
-    char buffer[1024];    
+    char buffer[2048];
     
     int rtimes = 1; //Ö´ÐÐ´ÎÊý
     if(argc > 4 )

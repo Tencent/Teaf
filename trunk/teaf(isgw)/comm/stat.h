@@ -13,28 +13,29 @@
   Author: jinglin xwfang              Date: 2009-12-10
   Description:
     请求统计模块，支持把统计信息记录到mem_map中，统计项规则说明如下:
-    1-100 为系统内部分配的指令 请业务不要使用
-    101-10000 为普通的业务指令（cmd) 统计项
-    10001-10240  可以留给业务自定义的统计项（正常异常都行）
-    20241 - 20480  为框架内部的异常统计项段 
+    1-100           为系统内部分配的指令 请业务不要使用
+    101-10000       为普通的业务指令（cmd) 统计项
+    10001-10239     可以留给业务自定义的统计项（正常异常都行）
+    20000 - 20480   为框架内部的异常统计项段 需要重点关注（20240之后的会有监控）
 ********************************************************************************/
 #ifndef _STAT_H_
 #define _STAT_H_
-#include <ace/Mem_Map.h> 
-#include <ace/Guard_T.h>
-#include <ace/Thread_Mutex.h>
+#include "ace_all.h"
 #include <string>
 
 #define USE_RW_THREAD_MUTEX 1
 
 //const int STAT_DESC_MAX_LEN = 60; 
 const int MAX_DESC_MSGLEN = 50; 
-const int MAX_STAT_INDEX = 10239;  //最大的正常统计项(下标从0开始)，错误统计项从 10240 开始 
-const int MAX_ISGW_FAILED_ITEM = 1024;   //isgw框架的最大错误统计项
+const int MAX_STAT_INDEX = 10239;  //最大的业务统计项(下标从0开始)
+const int MAX_ISGW_FAILED_ITEM = 1024;   //isgw框架的最大错误统计项数量，从20000开始
 
 //框架类错误统计定义 
 typedef enum _STAT_CODE
 {
+    STAT_CODE_START = 20000,
+    STAT_CODE_RECV_FAIL = 20231, // 从后端接收消息失败(只有同步的方式支持) 
+    
     STAT_CODE_SVC_ENQUEUE = 20241, // 接口线程入队到工作线程队列失败 
     STAT_CODE_SVC_TIMEOUT = 20242, // 工作线程处理时发现消息超时
     STAT_CODE_SVC_NOMEM = 20243, //  工作线程处理时发现内存耗尽 
@@ -45,7 +46,7 @@ typedef enum _STAT_CODE
     STAT_CODE_SVC_FORWARD = 20248, //
     STAT_CODE_IBCSVC_FAC = 20249, // ibc fac 异常
     
-    STAT_CODE_PUT_ACK_TIMEOUT = 20250, // 工作线程放入响应模块队列超时(相对)
+    STAT_CODE_PUT_ACK_TIMEOUT = 20250, // 工作线程放入响应模块队列超时(相对2s)
     STAT_CODE_ACK_NOOWNER = 20251, // 响应时没有找到对应的客户端
     STAT_CODE_ACK_DISCONN = 20252, // 回送消息时对端关闭
     STAT_CODE_ACK_BLOCK = 20253, // 回送消息时对端阻塞
@@ -53,18 +54,19 @@ typedef enum _STAT_CODE
     STAT_CODE_ACK_UNCOMP = 20255, // 回送消息时不完全
     STAT_CODE_CONN_FAIL = 20256, // 跟后端的连接失败
     STAT_CODE_SEND_FAIL = 20257, // 发送消息到后端失败
-    STAT_CODE_RECV_FAIL = 20258, // 从后端接收消息失败(只有同步的方式支持) 
+    
     STAT_CODE_DB_CONN_RUNOUT = 20259, //当前没有可用的DB连接
     STAT_CODE_TCP_CONN_RUNOUT = 20260, //当前没有可用的tcp连接
-
+    
     STAT_CODE_ISGWC_ENQUEUE = 20261, //  isgwcintf 模块入自身消息队列失败
     STAT_CODE_ASYNC_ENQUEUE = 20262, //  异步线程入队失败
     STAT_CODE_DB_CRITICAL_ERROR = 20263, // mysql关键错误，如2014、1146等
+    STAT_CODE_DB_TIMEOUT = 20264, // sql 操作时间过长(相对200ms)
 
     STAT_CODE_RDS_SEL_DB = 20270, //redis select db failed
     STAT_CODE_RDS_RESET = 20271, //redis reset
     
-    STAT_CODE_END
+    STAT_CODE_END = 20480
 }STAT_CODE;
 
 typedef struct ReprtInfo
