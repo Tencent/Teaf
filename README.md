@@ -15,4 +15,4 @@ Tencent Easy ACE Framework (简称Teaf)，基于ACE的高性能轻量级服务�
 
 性能参考数据：普通idc8核服务器(tlinux2.0   intel 2.53G CPU    8G 内存)
 100+客户端，跑单个isgw/teaf 服务器进程，处理能力大概在6w qps，cpu总占用大概在170%（除以8就是21%，网络中断所在的cpu基本上跑满）
-如果跑4个进程，处理能力在23w qps左右。
+跑4个进程，处理能力在23w qps左右。
