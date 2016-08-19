@@ -33,3 +33,4 @@ int process(QModeMsg& req, char* ack, int& ack_len);
 
 #样例程序
 svr/ 目录下有几个样例程序 比如 pdb_oper.cpp  *oper.cpp
+可以在svr目录下编译体验一下
