@@ -16,3 +16,20 @@ Tencent Easy ACE Framework (简称Teaf)，基于ACE的高性能轻量级服务�
 性能参考数据：普通idc8核服务器(tlinux2.0   intel 2.53G CPU    8G 内存)
 100+客户端，跑单个isgw/teaf 服务器进程，处理能力大概在6w qps，cpu总占用大概在170%（除以8就是21%，网络中断所在的cpu基本上跑满）
 跑4个进程，处理能力在23w qps左右。
+
+#开发步骤
+1 从 IsgwOperBase 继承子类
+2 重新实现 IsgwOperBase* factory_method() 返回 继承的子类
+IsgwOperBase* factory_method()
+{
+    TempProxy::init();
+    
+    IsgwOperBase* obj = new PdbOper();
+    return obj;
+}
+3 实现子类中的 process函数 实现相应的业务逻辑
+int process(QModeMsg& req, char* ack, int& ack_len);
+4 编译及安装
+
+#样例程序
+svr/ 目录下有几个样例程序 比如 pdb_oper.cpp  *oper.cpp
