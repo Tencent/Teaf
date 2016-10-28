@@ -52,26 +52,27 @@ typedef struct stIBCRValue
     std::list<std::string> msg_list; // 接受的消息体
     uint32 msg_num; // 消息体记录数
 
-	stIBCRValue()
-	{
-		time = 0;
-		cmd = 0;
-		uin = 0;
-		total = 0;
-		cnum = 0;
-		snum = 0;
-		msg_len = 0;
-		sock_fd_ = 0;
-		sock_seq_ = 0;
-		msg_seq_ = 0;
-		prot_ = 0;
-		rflag_ = 0;
-		endflag_ = 0;
-		msg_num = 0;
-		memset(msg, 0x0, sizeof(msg));
-		msg_list.clear();
-		msg_num = 0;
-	}
+    stIBCRValue()
+    {
+        time = 0;
+        cmd = 0;
+        uin = 0;
+        total = 0;
+        cnum = 0;
+        snum = 0;
+        msg_len = 0;
+        sock_fd_ = 0;
+        sock_seq_ = 0;
+        msg_seq_ = 0;
+        prot_ = 0;
+        time_ = 0;
+        rflag_ = 0;
+        endflag_ = 0;
+        msg_num = 0;
+        memset(msg, 0x0, sizeof(msg));
+        msg_list.clear();
+        msg_num = 0;
+    }
 }IBCRValue;
 
 ///内部批量处理结果 数据结构 

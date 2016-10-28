@@ -139,16 +139,12 @@ PPMsg* IBCMgrSvc::process(QModeMsg*& req)
                     ",maybe system has no memory\n"
                     ));
                 //函数返回的时候回收资源 
-                if (req != NULL)
-                {
-                    delete req;
-                    req = NULL;
-                }
-                if (oper != NULL)
-                {
-                    delete oper;
-                    oper = NULL;
-                }
+                delete req;
+                req = NULL;
+
+                delete oper;
+                oper = NULL;
+                
                 return NULL;
             }
             memset(pp_ack, 0x0, sizeof(PPMsg));
@@ -213,16 +209,12 @@ PPMsg* IBCMgrSvc::process(QModeMsg*& req)
                 ",maybe system has no memory\n"
                 ));
             //函数返回的时候回收资源 
-            if (req != NULL)
-            {
-                delete req;
-                req = NULL;
-            }
-            if (oper != NULL)
-            {
-                delete oper;
-                oper = NULL;
-            }
+            delete req;
+            req = NULL;
+            
+            delete oper;
+            oper = NULL;
+
             return NULL;
         }
     	memset(pp_ack, 0x0, sizeof(PPMsg));
@@ -268,17 +260,12 @@ PPMsg* IBCMgrSvc::process(QModeMsg*& req)
         , req->get_cmd()));
 
     //函数返回的时候回收资源 
-    if (req != NULL)
-    {
-        delete req;
-        req = NULL;
-    }
-    if (oper != NULL)
-    {
-        delete oper;
-        oper = NULL;
-    }
-    
+    delete req;
+    req = NULL;
+
+    delete oper;
+    oper = NULL;
+
     return pp_ack;
 }
 

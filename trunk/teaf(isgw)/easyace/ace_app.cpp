@@ -181,7 +181,6 @@ int ACEApp::init(int argc, ACE_TCHAR* argv[])
         ACE_DEBUG((LM_ERROR, "[%D] init app failed, program exit\n"));
         return -1;
     }
-    ACE_DEBUG((LM_INFO, "[%D] init app succ\n"));
 
     write_pid_file();
     ACE_DEBUG((LM_INFO, "[%D] write pid file succ\n"));
@@ -332,7 +331,8 @@ int ACEApp::init_reactor()
 
     #if ((ACE_MAJOR_VERSION > 5 || (ACE_MAJOR_VERSION==5 && ACE_MINOR_VERSION>=6)) && defined (ACE_HAS_EVENT_POLL) )
 
-    ACE_DEBUG((LM_INFO, "[%D] ACEApp use dev poll reactor, ACE_FD_SETSIZE=%d\n", ACE_FD_SETSIZE));
+    ACE_DEBUG((LM_INFO, "[%D] ACEApp init reactor,use dev poll,ACE_FD_SETSIZE=%d,MAXFD=%d,BACKLOG=%d\n"
+        , ACE_FD_SETSIZE, ACE::max_handles(), ACE_DEFAULT_BACKLOG));
     //ACE5.6 之上的版本使用EPOLL
 
     //如果实现高并发,这里就不 需要限制FD的最大值
@@ -348,14 +348,14 @@ int ACEApp::init_reactor()
     //ACE 这个xx，居然用 true 表示成功,害得我调试半天(sail 语录)
     if (ret != true )
     {
-        ACE_DEBUG((LM_ERROR,"ACEApp init ACE_Dev_Poll_Reactor failed, errno:%u|%m, ret=%d\n", ACE_OS::last_error(), ret));
+        ACE_DEBUG((LM_ERROR,"ACEApp init dev poll failed, errno:%u|%m, ret=%d\n", ACE_OS::last_error(), ret));
         return ret;
     }
     ACE_Reactor::instance(new  ACE_Reactor(dp_reactor,1),1);
 
     #else
 
-    ACE_DEBUG((LM_INFO, "[%D] ACEApp use select reactor, ACE_FD_SETSIZE=%d\n", ACE_FD_SETSIZE));
+    ACE_DEBUG((LM_INFO, "[%D] ACEApp init reactor,use select,ACE_FD_SETSIZE=%d,BACKLOG=%d\n", ACE_FD_SETSIZE, ACE_DEFAULT_BACKLOG));
     ACE_Reactor::instance(new ACE_Reactor(new ACE_Select_Reactor_N()));
 
     #endif
@@ -376,10 +376,9 @@ void ACEApp::daemon_main()
 
     while (ACE_Reactor::instance()->reactor_event_loop_done () == 0)
     {
-        ACE_DEBUG((LM_INFO, "[%D] within daemon main pid: %d\n",
-            ACE_OS::getpid()));
-
-        ACE_Reactor::instance()->run_reactor_event_loop();
+        int ret = ACE_Reactor::instance()->run_reactor_event_loop();
+        ACE_DEBUG((LM_INFO, "[%D] within daemon main pid:%d,ret:%d,errno:%d\n"
+            , ACE_OS::getpid(), ret, errno));
     }
 }
 

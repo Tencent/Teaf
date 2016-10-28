@@ -20,7 +20,7 @@
 #include "ibc_prot.h"
 #include "../comm/pp_prot.h"
 
-#define MSG_QUE_SIZE 10*1024*1024
+#define MSG_QUE_SIZE 20*1024*1024
 #define MAX_IBCR_RECORED 1024 //map 里面最多的记录数 
 
 //此模块负责把从网络接收的消息调用业务逻辑提供的接口进行处理，并回送给网络收发接口

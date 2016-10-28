@@ -26,6 +26,8 @@ class ISGWSighdl: public ACE_Event_Handler
 public:
     ~ISGWSighdl();
 
+    //这些都是 ACE_Reactor 注册的回调函数，
+    //请不要做重操作，不然会阻塞主线程，影响性能
     int handle_signal(int signum, siginfo_t * = 0, ucontext_t * = 0);
     int handle_timeout(const ACE_Time_Value& tv, const void *arg);
     //int handle_exception(ACE_HANDLE);

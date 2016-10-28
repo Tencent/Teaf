@@ -35,6 +35,7 @@ typedef enum _STAT_CODE
 {
     STAT_CODE_START = 20000,
     STAT_CODE_RECV_FAIL = 20231, // 从后端接收消息失败(只有同步的方式支持) 
+    STAT_CODE_PUT_ACK_TOOLATE = 20232, // 工作线程放入响应模块队列太晚(相对2s)
     
     STAT_CODE_SVC_ENQUEUE = 20241, // 接口线程入队到工作线程队列失败 
     STAT_CODE_SVC_TIMEOUT = 20242, // 工作线程处理时发现消息超时
@@ -42,29 +43,28 @@ typedef enum _STAT_CODE
     STAT_CODE_IBCSVC_ENQUEUE = 20244, //入 ibc 消息队列失败 
     STAT_CODE_SVC_OVERLOAD = 20245, // 工作线程处理时发现系统过载
     STAT_CODE_SVC_REJECT = 20246, // 指令流量或者失败率异常
-    STAT_CODE_IBCSVC_TIMEOUT = 20247, //ibc 工作线程处理时发现消息超时
-    STAT_CODE_SVC_FORWARD = 20248, //
-    STAT_CODE_IBCSVC_FAC = 20249, // ibc fac 异常
+    STAT_CODE_IBCSVC_TIMEOUT = 20247, // ibc 工作线程处理时发现消息超时
+    STAT_CODE_SVC_FORWARD = 20248, // 转发失败
+    STAT_CODE_IBCSVC_FAC = 20249, // ibc fac 创建对象异常
     
-    STAT_CODE_PUT_ACK_TIMEOUT = 20250, // 工作线程放入响应模块队列超时(相对2s)
     STAT_CODE_ACK_NOOWNER = 20251, // 响应时没有找到对应的客户端
     STAT_CODE_ACK_DISCONN = 20252, // 回送消息时对端关闭
     STAT_CODE_ACK_BLOCK = 20253, // 回送消息时对端阻塞
     STAT_CODE_ACK_ABNOR = 20254, // 回送消息时异常
     STAT_CODE_ACK_UNCOMP = 20255, // 回送消息时不完全
-    STAT_CODE_CONN_FAIL = 20256, // 跟后端的连接失败
-    STAT_CODE_SEND_FAIL = 20257, // 发送消息到后端失败
+    STAT_CODE_CONN_FAIL = 20256, // 跟后端服务的连接失败
+    STAT_CODE_SEND_FAIL = 20257, // 发送消息到后端服务失败
     
     STAT_CODE_DB_CONN_RUNOUT = 20259, //当前没有可用的DB连接
     STAT_CODE_TCP_CONN_RUNOUT = 20260, //当前没有可用的tcp连接
     
-    STAT_CODE_ISGWC_ENQUEUE = 20261, //  isgwcintf 模块入自身消息队列失败
-    STAT_CODE_ASYNC_ENQUEUE = 20262, //  异步线程入队失败
+    STAT_CODE_ISGWC_ENQUEUE = 20261, //  异步连接管理器入消息队列失败
+    STAT_CODE_ASYNC_ENQUEUE = 20262, //  异步线程入消息队列失败
     STAT_CODE_DB_CRITICAL_ERROR = 20263, // mysql关键错误，如2014、1146等
     STAT_CODE_DB_TIMEOUT = 20264, // sql 操作时间过长(相对200ms)
 
-    STAT_CODE_RDS_SEL_DB = 20270, //redis select db failed
-    STAT_CODE_RDS_RESET = 20271, //redis reset
+    STAT_CODE_RDS_SEL_DB = 20270, //redis 选择db失败
+    STAT_CODE_RDS_RESET = 20271, //redis 连接重置
     
     STAT_CODE_END = 20480
 }STAT_CODE;

@@ -23,7 +23,7 @@ int ISGWMgrSvc::ripnum_=0;
 
 map<string, PlatConnMgrAsy*> ISGWMgrSvc::route_conn_mgr_map_;
 ACE_Thread_Mutex ISGWMgrSvc::conn_mgr_lock_;
-int ISGWMgrSvc::local_port_ = 0; // 本地端口
+int ISGWMgrSvc::local_port_ = 0; 
 
 ISGWMgrSvc* ISGWMgrSvc::instance()
 {
@@ -36,11 +36,7 @@ ISGWMgrSvc* ISGWMgrSvc::instance()
 
 int ISGWMgrSvc::init()
 {
-    ACE_DEBUG((LM_INFO,
-		"[%D] ISGWMgrSvc start to init\n"
-		));
-
-    int ret;
+    ACE_DEBUG((LM_INFO, "[%D] ISGWMgrSvc start to init\n"));
     //调用各业务定义的工厂方法，生产出一个子类的对象
     //如果子类的对象生产失败，则程序启动错误
     IsgwOperBase *object = factory_method();
@@ -50,7 +46,7 @@ int ISGWMgrSvc::init()
         return -1;
     }
 
-    ret =IsgwOperBase::instance(object)->init();
+    int ret =IsgwOperBase::instance(object)->init();
     if(ret !=0)
     {
         ACE_DEBUG((LM_ERROR, "[%D] ISGWMgrSvc init IsgwOperBase failed\n"));
@@ -100,14 +96,14 @@ int ISGWMgrSvc::init()
     }
     ripnum_ = idx; // 记录配置的ip数量 
 
-    // 本地端口
+    // 本地监听端口
     SysConf::instance()->get_conf_int("system", "port", &local_port_);
     
     //流量控制的设置
     SysConf::instance()->get_conf_int("cmd_amnt_cntrl", "control_flag", &control_flag_);
     freq_obj_ = new CmdAmntCntrl();
     
-    // 超时设置 
+    // 设置消息超时策略
     SysConf::instance()->get_conf_int("isgw_mgr_svc", "discard_flag", &discard_flag_);
     SysConf::instance()->get_conf_int("isgw_mgr_svc", "discard_time", &discard_time_);
 
@@ -115,17 +111,20 @@ int ISGWMgrSvc::init()
     //设置消息队列大小
     SysConf::instance()->get_conf_int("isgw_mgr_svc", "quesize", &quesize); 
     ACE_DEBUG((LM_INFO, "[%D] ISGWMgrSvc set quesize=%d(byte)\n", quesize));
-    open(quesize, quesize, NULL); 
+    open(quesize, quesize, NULL);     
     
-    //设置线程数，默认为 10 
+    //设置线程数，并激活
     int threads = DEFAULT_THREADS; // ACESvc 的 常量 
-    SysConf::instance()->get_conf_int("isgw_mgr_svc", "threads", &threads);    
+    SysConf::instance()->get_conf_int("isgw_mgr_svc", "threads", &threads);        
+    if (threads < SVC_QUE_NUM)
+    {
+        threads = SVC_QUE_NUM;
+    }
     ACE_DEBUG((LM_INFO, "[%D] ISGWMgrSvc set number of threads=%d\n", threads));
-	//激活线程
     activate(THR_NEW_LWP | THR_JOINABLE, threads);
 
     ACE_DEBUG((LM_INFO,"[%D] ISGWMgrSvc init succ,inner lock=0x%x,conn_mgr_lock=0x%x\n"
-            , &(queue_.lock()), &(conn_mgr_lock_.lock()) ));
+            , &(queue_[0].lock()), &(conn_mgr_lock_.lock()) ));
     return 0;
 }
 
@@ -237,12 +236,11 @@ int ISGWMgrSvc::init_dll_os(const char* dllname)
 #endif
 
 PPMsg* ISGWMgrSvc::process(PPMsg*& ppmsg)
-{
+{  
     unsigned int threadid = syscall(__NR_gettid); //ACE_OS::thr_self();
     unsigned int pid = ACE_OS::getpid();
-
     ACE_DEBUG((LM_TRACE, "[%D] ISGWMgrSvc (%u:%u) process start\n", threadid, pid));
-
+    gettimeofday(&ppmsg->p_start, NULL);
 
     //二进制需要传入长度
     //二进制协议不知道命令字，默认为0，无法在入口统计命令数
@@ -322,14 +320,12 @@ PPMsg* ISGWMgrSvc::process(PPMsg*& ppmsg)
     ret = 0;
     char ack_buf[MAX_INNER_MSG_LEN+1] = {0}; // 存放以地址&分割的结果信息
     
-    struct timeval p_start, p_end;
-    gettimeofday(&p_start, NULL);
-    unsigned diff = EASY_UTIL::get_span(&(ppmsg->tv_time), &p_start);
+    unsigned time_diff = EASY_UTIL::get_span(&(ppmsg->tv_time), &ppmsg->p_start);
     //根据客户端请求指令进行相关操作
     ACE_DEBUG((LM_NOTICE, "[%D] ISGWMgrSvc start to process cmd=%d,time_diff=%u"
         ",sock_fd=%u,prot=%u,ip=%u,port=%u,sock_seq=%u,seq_no=%u\n"
         , qmode_req.get_cmd()
-        , diff
+        , time_diff
         , ppmsg->sock_fd
         , ppmsg->protocol
         , ppmsg->sock_ip
@@ -421,13 +417,14 @@ PPMsg* ISGWMgrSvc::process(PPMsg*& ppmsg)
         forward(qmode_req, proc_rflag, qmode_req.get_uin());
     }
 #endif
+    struct timeval p_end;
     gettimeofday(&p_end, NULL);
-    ppmsg->procs_span = EASY_UTIL::get_span(&p_start, &p_end);
+    ppmsg->procs_span = EASY_UTIL::get_span(&ppmsg->p_start, &p_end);
     ppmsg->ret = ret;
     ppmsg->cmd = qmode_req.get_cmd();
     
     ACE_DEBUG((LM_NOTICE, "[%D] ISGWMgrSvc finish process "
-        "cmd=%d,ret=%d,ack=%s,ack_len=%d,time_diff=%u,"
+        "cmd=%d,ret=%d,ack=%s,ack_len=%d,procs_span=%u,"
         "sock_fd=%u,prot=%u,ip=%u,port=%u,sock_seq=%u,seq_no=%u\n"
         , qmode_req.get_cmd()
         , ret
@@ -497,7 +494,7 @@ PPMsg* ISGWMgrSvc::process(PPMsg*& ppmsg)
     {
         if (ack_len > MAX_INNER_MSG_LEN)
         {
-            ACE_DEBUG((LM_ERROR, "[%D] warning: ack msg len is limited,ack_len=%d\n", ack_len));
+            ACE_DEBUG((LM_ERROR, "[%D] warning ack msg len is limited,ack_len=%d\n", ack_len));
             ack_len = MAX_INNER_MSG_LEN;
         }
         
@@ -549,7 +546,7 @@ int ISGWMgrSvc::check(QModeMsg& qmode_req)
     if (1==discard_flag_ && span > discard_time_*10000)
     {
         // 统计失败情况 
-        ACE_DEBUG((LM_ERROR,"[%D] ISGWMgrSvc::check failed,span=%u\n", span));
+        ACE_DEBUG((LM_ERROR,"[%D] ISGWMgrSvc check failed,span=%u\n", span));
         Stat::instance()->incre_stat(STAT_CODE_SVC_TIMEOUT);
         return ERROR_TIMEOUT_FRM;
     }

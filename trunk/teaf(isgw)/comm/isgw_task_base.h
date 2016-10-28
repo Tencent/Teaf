@@ -9,26 +9,23 @@
 ******************************************************************************/
 #ifndef ISGW_TASK_BASE_H
 #define	ISGW_TASK_BASE_H
+#include "easyace_all.h"
 
-#include <string>
-#include <ace/Task.h>
-
+// 此类即异步工作线程的基类 asy_task
+// 可继承此类 实现为单体并且调用 init 开启线程才行 
 class IsgwTaskBase : public ACE_Task<ACE_MT_SYNCH> 
 {
 public:
-    IsgwTaskBase(const std::string& conf_section = "comm") : conf_section_(conf_section), 
+    IsgwTaskBase(const std::string& conf_section = "asy_task") : conf_section_(conf_section), 
             thread_num_(DEF_THREAD_NUM) {}
-    
-public:
     virtual int init();
+    virtual int put(const char * req_buf, int len, int type);
     virtual int stop();
-    
-public:
-    virtual int open(void* p = 0);
-    virtual int svc();
-    virtual int put (ACE_Message_Block *mblk, ACE_Time_Value *timeout = 0);
-    
+
 protected:
+    virtual int open(void* p = 0);
+    virtual int put (ACE_Message_Block *mblk, ACE_Time_Value *timeout = 0);
+    virtual int svc();
     virtual int process(ACE_Message_Block* mblk) = 0;
 
 protected:
@@ -36,8 +33,8 @@ protected:
     unsigned int thread_num_;
     
 private:
-    static const unsigned int DEF_THREAD_NUM = 1;
+    static const unsigned int DEF_THREAD_NUM = 10;
 };
 
-#endif	/* ISGW_TASK_BASE_H */
+#endif	// ISGW_TASK_BASE_H
 

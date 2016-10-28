@@ -509,7 +509,7 @@ int32_t PlatDbAccess::stat_return(const int32_t result, timeval* start, const ch
     )
     {
         ACE_DEBUG((LM_ERROR, "[%D] PlatDbAccess stat_return failed"
-            ",section=%s,result=%d\n", section_, result));
+            ",section=%s,result=%d,sql=%s\n", section_, result, sql));
         Stat::instance()->incre_stat(STAT_CODE_DB_CRITICAL_ERROR);
     }
 
@@ -528,5 +528,19 @@ int32_t PlatDbAccess::stat_return(const int32_t result, timeval* start, const ch
     }
     
     return result;
+}
+
+int PlatDbAccess::is_legal(const char * sql)
+{
+    if(strstr(sql, ";") != NULL)
+    {
+        return 1; //非法
+    }
+    if(strstr(sql, "sleep(") != NULL)
+    {
+        return 1; //非法
+    }
+
+    return 0;
 }
 

@@ -22,6 +22,10 @@
 #define ACE_SVC_MSG_QUE_SIZE  1*1024*1024
 #endif
 
+#ifndef SVC_QUE_NUM 
+#define SVC_QUE_NUM  1
+#endif
+
 template <typename IN_MSG_TYPE, typename OUT_MSG_TYPE>
 class ACESvc : public ACE_Task_Base
 {
@@ -50,14 +54,16 @@ public:
     
 protected:
     virtual int svc (void);
-    virtual int recv(IN_MSG_TYPE*& msg);
+    virtual int recv(IN_MSG_TYPE*& msg, int idx);
     virtual OUT_MSG_TYPE* process(IN_MSG_TYPE*& msg);
     virtual int send(OUT_MSG_TYPE* ack);
 
 protected:
-    ACESVC_MSGQ queue_;
-    //ACE_Thread_Mutex queue_lock_;
-    ACE_Time_Value time_out_;
+    ACESVC_MSGQ queue_[SVC_QUE_NUM]; //两个队列切换
+    ACE_Time_Value time_out_; 
+    int index_; //当前使用的入队队列
+    int threads_; //实际线程数  不能少于队列数量 SVC_QUE_NUM 
+    int seq_; //消息序号 不需要特别准 只是为了调度消息队列的 
     
     static ACESvc<IN_MSG_TYPE, OUT_MSG_TYPE> *instance_;
 	
@@ -75,21 +81,15 @@ int ACESvc<IN_MSG_TYPE, OUT_MSG_TYPE>::init()
 		"[%D] in ACESvc::init\n"
 		));
 
-    //set que size 
-    queue_.open(ACE_SVC_MSG_QUE_SIZE, ACE_SVC_MSG_QUE_SIZE, NULL);
-
-    //set enqueue time out 0
-    time_out_.set(0,0);
-
-    //active num thread
-    activate(THR_NEW_LWP | THR_JOINABLE, DEFAULT_THREADS);
+    //open queue 
+    open(ACE_SVC_MSG_QUE_SIZE, ACE_SVC_MSG_QUE_SIZE, NULL);
+    
+    //active threads
+    threads_ = DEFAULT_THREADS;
+    activate(THR_NEW_LWP | THR_JOINABLE, threads_);
 
     ACE_DEBUG((LM_INFO, "[%D] ACESvc init succ,threads=%d,inner lock=0x%x\n"
-        , DEFAULT_THREADS, &(queue_.lock()) ));
-    
-    ACE_DEBUG((LM_TRACE,
-		"[%D] out ACESvc::init\n"
-		));
+        , threads_, &(queue_[0].lock()) ));
     return 0;
 }
 
@@ -97,8 +97,17 @@ template <typename IN_MSG_TYPE, typename OUT_MSG_TYPE>
 int ACESvc<IN_MSG_TYPE, OUT_MSG_TYPE>::open (size_t hwm,
 											size_t lwm, ACE_Notification_Strategy *sty)
 {
-    ACE_DEBUG((LM_INFO, "[%D] ACESvc open que size hwm=%d,lwm=%d\n", hwm, lwm));
-    return queue_.open (hwm, lwm, sty);
+    int ret = 0;
+    for(int i=0; i<SVC_QUE_NUM; i++)
+    {
+        ret = queue_[i].open (hwm, lwm, sty);
+    }
+    //set enqueue time out
+    time_out_.set(0,0);  //后面是 us 
+    index_ = 0;
+    
+    ACE_DEBUG((LM_INFO, "[%D] ACESvc open que succ,hwm=%d,lwm=%d,que_num=%d\n", hwm, lwm, SVC_QUE_NUM));
+    return ret;
 }
 
 template <typename IN_MSG_TYPE, typename OUT_MSG_TYPE>
@@ -107,7 +116,10 @@ int ACESvc<IN_MSG_TYPE, OUT_MSG_TYPE>::fini()
     ACE_DEBUG((LM_TRACE,
 		"[%D] in ACESvc::fini\n"
 		));
-    queue_.deactivate();
+    for(int i=0; i<SVC_QUE_NUM; i++)
+    {
+        queue_[i].deactivate();
+    }    
 
     this->thr_mgr()->kill_grp(this->grp_id(), SIGINT);
     this->thr_mgr()->wait_grp(this->grp_id());
@@ -121,56 +133,53 @@ int ACESvc<IN_MSG_TYPE, OUT_MSG_TYPE>::fini()
 template <typename IN_MSG_TYPE, typename OUT_MSG_TYPE>
 int ACESvc<IN_MSG_TYPE, OUT_MSG_TYPE>::putq(IN_MSG_TYPE* msg)
 {
-    ACE_DEBUG((LM_TRACE,
-		"[%D] in ACESvc::putq\n"
-		));
+    // 使用轮询策略，对性能提升不大
+    // index_ = seq_++%SVC_QUE_NUM;
+    
     int ret = 0;
-    if ( msg != NULL )
+    for (int i=0; i<SVC_QUE_NUM; i++) //确保最多尝试一轮
     {
-        ret = queue_.enqueue(msg, &time_out_);
+        ret = queue_[index_].enqueue(msg, &time_out_);
         if (ret == -1)
         {
             ACE_DEBUG((LM_ERROR,
-        		"[%D] ACESvc enqueue msg failed,msg count is %d\n"
-        		, queue_.message_count()
+        		"[%D] ACESvc enqueue msg failed,msg count is %d,index=%d\n"
+        		, queue_[index_].message_count(), index_
         		));
-            return -1;
+            index_=(++index_)%SVC_QUE_NUM; //尝试下一个队列 
+            continue;
         }
-        ACE_DEBUG((LM_TRACE,
-            "[%D] ACESvc enqueue msg succ,msg count is %d,ret=%d\n"
-            , queue_.message_count()
-            , ret
-            ));
+        else //放成功了要退出循环 避免重复放入队列 
+        {
+            if (ret > 500)
+            {
+                index_=(++index_)%SVC_QUE_NUM; //尝试下一个队列 
+            }
+            break;
+        }
     }
-    ACE_DEBUG((LM_TRACE,
-		"[%D] out ACESvc::putq\n"
-		));
+    
+    ACE_DEBUG((LM_NOTICE, "[%D] ACESvc enqueue msg succ,msg count is %d,index is %d\n", ret, index_));
+    
     return ret;
 }
 
 template <typename IN_MSG_TYPE, typename OUT_MSG_TYPE>
-int ACESvc<IN_MSG_TYPE, OUT_MSG_TYPE>::recv(IN_MSG_TYPE*& msg)
+int ACESvc<IN_MSG_TYPE, OUT_MSG_TYPE>::recv(IN_MSG_TYPE*& msg, int idx)
 {
-    // 此处应该不需要加锁 本身消息队列是 ACE_MT_SYNCH 的
-    // ACE_Guard<ACE_Thread_Mutex> guard(queue_lock_);    
-    int ret = 0;
+    //本身消息队列是 ACE_MT_SYNCH 的
+    idx = idx % SVC_QUE_NUM;
     
-    ACE_DEBUG((LM_TRACE,
-        "[%D] ACESvc before dequeue msg,msg count %d\n"
-        , queue_.message_count()
-        ));
-    
-    ret = queue_.dequeue(msg);
+    int ret = queue_[idx].dequeue(msg);  //&time_out_
     if ( msg == NULL || ret == -1 )
     {
         ACE_DEBUG((LM_ERROR,
-            "[%D] ACESvc dequeue msg failed or recv a null msg\n"
+            "[%D] ACESvc dequeue msg failed or recv a null msg,idx=%d,usec=%d\n"
+            , idx, time_out_.usec()
             ));
     }
-    ACE_DEBUG((LM_TRACE,
-        "[%D] ACESvc after dequeue msg,msg count %d\n"
-        , queue_.message_count()
-        ));
+    
+    ACE_DEBUG((LM_NOTICE, "[%D] ACESvc dequeue msg succ,msg count is %d,idx is %d\n", ret, idx));
     
     return ret;
 }
@@ -217,7 +226,7 @@ int ACESvc<IN_MSG_TYPE, OUT_MSG_TYPE>::svc(void)
     while (1)
     {  
         IN_MSG_TYPE* msg = NULL;
-        int ret = recv(msg);
+        int ret = recv(msg, threadid);
         if (ret == -1)
         {
             if (errno == ESHUTDOWN)
@@ -248,22 +257,11 @@ int ACESvc<IN_MSG_TYPE, OUT_MSG_TYPE>::svc(void)
         }
 
         OUT_MSG_TYPE* ack = process(msg);
-        /* 消息由应用层自己管理 建议进出都用同一条消息
-        if (msg != NULL )
-        {
-            ACE_DEBUG((LM_ERROR,
-                "[%D] ACESvc (%u:%u) svc del proceed msg\n"
-                , threadid, pid
-                ));
-            delete msg;
-            msg = NULL;
-        }
-        */
         
         if (ack != NULL )
         {
             send(ack);
-        }	
+        }
     }
     
     ACE_DEBUG((LM_INFO,

@@ -1,6 +1,7 @@
 #include "isgw_uintf.h"
 #include "isgw_mgr_svc.h"
 #include "isgw_ack.h"
+#include "stat.h"
 
 ISGWUIntf* ISGWUIntf::instance_ = NULL;
 ACE_UINT32 ISGWUIntf::msg_seq_ = 0;
@@ -14,7 +15,7 @@ ISGWUIntf* ISGWUIntf::instance()
     return instance_;
 }
 
-ISGWUIntf::ISGWUIntf()
+ISGWUIntf::ISGWUIntf():ret_(0)
 {
     ACE_DEBUG((LM_INFO, "[%D] construct ISGWUIntf succ\n"));
     memset(recv_buf_, 0, sizeof(recv_buf_));
@@ -173,6 +174,8 @@ int ISGWUIntf::process(char* msg, int sock_fd, int sock_seq)
             	));
             //入队失败回收消息，避免内存泄漏
             ISGW_Object_Que<PPMsg>::instance()->enqueue(req, req->index);
+            // 统计计数 
+            Stat::instance()->incre_stat(STAT_CODE_SVC_ENQUEUE);
             
             return -1;
         }

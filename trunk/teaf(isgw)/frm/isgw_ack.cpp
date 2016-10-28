@@ -34,13 +34,17 @@ int ISGWAck::init(int tv)
 
 void ISGWAck::putq(PPMsg* ack_msg)
 {
-    ACE_Guard<ACE_Thread_Mutex> guard(queue_lock_);
     if (ack_msg == NULL)
     {
         ACE_DEBUG((LM_ERROR, "[%D] ISGWAck putq failed,ack_msg is null\n"));
         return ;
     }
-    msg_queue_.push_back(ack_msg);
+    
+    {
+        ACE_Guard<ACE_Thread_Mutex> guard(queue_lock_);
+        msg_queue_.push_back(ack_msg);
+    }
+    
 #ifdef ISGW_ACK_USE_TIMER 
     
 #else
@@ -49,34 +53,37 @@ void ISGWAck::putq(PPMsg* ack_msg)
 
     struct timeval tv_now;
     gettimeofday(&tv_now, NULL);
-    unsigned time_diff = EASY_UTIL::get_span(&ack_msg->tv_time, &tv_now);
+    unsigned time_inq = EASY_UTIL::get_span(&ack_msg->tv_time, &ack_msg->p_start); //在入口消息队列里的时间
+    unsigned time_diff = EASY_UTIL::get_span(&ack_msg->tv_time, &tv_now); 
     // 处理超过规定的时间 则进行统计 方便监控 
     if(time_diff>ALARM_TIMEOUT*10000)
     {
-        ACE_DEBUG((LM_ERROR, "[%D] ISGWAck put queue failed timeout,sock_fd=%u,prot=%u,ip=%u"
-            ",port=%u,sock_seq=%u,seq_no=%u,time_diff=%u,que_size=%d,cmd=%d,msg=%s\n"
+        ACE_DEBUG((LM_ERROR, "[%D] ISGWAck put queue failed,too late,sock_fd=%u,prot=%u,ip=%u"
+            ",port=%u,sock_seq=%u,seq_no=%u,time_inq=%u,time_diff=%u,que_size=%d,cmd=%d,msg=%s\n"
             ,ack_msg->sock_fd
             ,ack_msg->protocol
             ,ack_msg->sock_ip
             ,ack_msg->sock_port
             ,ack_msg->sock_seq
             ,ack_msg->seq_no
+            ,time_inq
             ,time_diff
             ,msg_queue_.size()
             ,ack_msg->cmd
             ,ack_msg->msg
             ));
-        Stat::instance()->incre_stat(STAT_CODE_PUT_ACK_TIMEOUT);
+        Stat::instance()->incre_stat(STAT_CODE_PUT_ACK_TOOLATE);
     }
     
     ACE_DEBUG((LM_NOTICE, "[%D] ISGWAck putq succ,sock_fd=%u,prot=%u,ip=%u"
-        ",port=%u,sock_seq=%u,seq_no=%u,time_diff=%u,que_size=%d,cmd=%d\n"
+        ",port=%u,sock_seq=%u,seq_no=%u,time_inq=%u,time_diff=%u,que_size=%d,cmd=%d\n"
         ,ack_msg->sock_fd
         ,ack_msg->protocol
         ,ack_msg->sock_ip
         ,ack_msg->sock_port
         ,ack_msg->sock_seq
         ,ack_msg->seq_no
+        ,time_inq
         ,time_diff
         ,msg_queue_.size()
         ,ack_msg->cmd
@@ -129,7 +136,7 @@ int ISGWAck::process()
     ACE_DEBUG((LM_TRACE, "[%D] ISGWAck get a msg succ,start to find sock handler.\n"));
 
     //上报当前请求的统计数值
-    statisitc(msg);
+    stat(msg);
     
     if(msg->protocol == PROT_UDP_IP) //UDP 协议 
     {
@@ -159,7 +166,7 @@ int ISGWAck::process()
         {
             ACE_DEBUG((LM_ERROR,
                 "[%D] ISGWAck find msg owner failed,sock_fd=%u,prot=%u"
-                ",ip=%u,port=%u,sock_seq=%u,seq_no=%u,t_time=%u,p_time=%u"
+                ",ip=%u,port=%u,sock_seq=%u,seq_no=%u,total_span=%u,procs_span=%u"
                 ",cmd=%d,msg=%s\n"
                 , msg->sock_fd
                 , msg->protocol
@@ -189,7 +196,7 @@ int ISGWAck::process()
 
         ACE_DEBUG((LM_NOTICE,
                 "[%D] ISGWAck send msg,sock_fd=%u,prot=%u"
-                ",ip=%u,port=%u,sock_seq=%u,seq_no=%u,time=%u,t_time=%u,p_time=%u"
+                ",ip=%u,port=%u,sock_seq=%u,seq_no=%u,total_span=%u,procs_span=%u"
                 ",send_len=%d\n"
                 , msg->sock_fd
                 , msg->protocol
@@ -197,7 +204,6 @@ int ISGWAck::process()
                 , msg->sock_port
                 , msg->sock_seq
                 , msg->seq_no
-                , msg->tv_time.tv_sec
                 , msg->total_span
                 , msg->procs_span
                 , msg->msg_len
@@ -238,7 +244,7 @@ int ISGWAck::handle_timeout(const ACE_Time_Value & tv, const void * arg)
     return 0;
 }
 
-uint32_t ISGWAck::statisitc(PPMsg* ack_msg)
+uint32_t ISGWAck::stat(PPMsg* ack_msg)
 {
     struct timeval t_end;
     gettimeofday(&t_end, NULL);
@@ -257,8 +263,8 @@ uint32_t ISGWAck::statisitc(PPMsg* ack_msg)
 #endif
 
     ACE_DEBUG((LM_NOTICE,
-        "[%D] ISGWAck statisitc finish,cmd=%d,time_diff=%d,,sock_fd=%u,prot=%u"
-        ",ip=%u,port=%u,sock_seq=%u,seq_no=%u\n"
+        "[%D] ISGWAck statisitc finish,cmd=%d,time_diff=%d,sock_fd=%u,prot=%u"
+        ",ip=%u,port=%u,sock_seq=%u,seq_no=%u,total_span=%u,procs_span=%u\n"
         , info.cmd
         , (ack_msg->total_span-ack_msg->procs_span)
         , ack_msg->sock_fd
@@ -267,6 +273,8 @@ uint32_t ISGWAck::statisitc(PPMsg* ack_msg)
         , ack_msg->sock_port
         , ack_msg->sock_seq
         , ack_msg->seq_no
+        , ack_msg->total_span
+        , ack_msg->procs_span
         ));
         
     return ack_msg->total_span;

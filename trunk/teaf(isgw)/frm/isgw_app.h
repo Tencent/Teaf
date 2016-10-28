@@ -17,14 +17,13 @@
 #define _ISGW_APP_H_
 #include "isgw_comm.h"
 
-#define SYS_MODULE_VERSION "V3.3"
+#define SYS_MODULE_VERSION "V3.4"
 
 ///默认消息对象池的大小
 #ifndef OBJECT_QUEUE_SIZE
 #define OBJECT_QUEUE_SIZE 3000
 #endif 
 
-#define MAX_FD_SETSIZE 10240
 #define DEF_MAX_WAIT_MGR_TIME 5
 
 class ISGWApp : public ACEApp

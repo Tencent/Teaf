@@ -59,7 +59,7 @@ int ASYTask::insert(ASYRMsg &rmsg)
         {
             if(now - it->second.time > DISCARD_TIME)
             {
-                asyr_map_.erase(it);
+                asyr_map_.erase(it); //it  «∑Ò”––ß? 
             }
         }        
     }

@@ -20,7 +20,7 @@
 #include "plat_conn_mgr_asy.h"
 #include "../comm/pp_prot.h"
 
-#define MSG_QUE_SIZE 10*1024*1024
+#define MSG_QUE_SIZE 20*1024*1024
 
 typedef int (*OPER_INIT)();
 //typedef int (*OPER_PROC)(char* req, char* ack, int& ack_len);
@@ -36,7 +36,7 @@ public:
     friend class IsgwOperBase;
     
     // get message queue size
-    size_t message_count() { return queue_.message_count(); }
+    size_t message_count() { return queue_[0].message_count(); }
     
 protected:
     ISGWMgrSvc()
@@ -84,7 +84,7 @@ private:
     static map<string, PlatConnMgrAsy*> route_conn_mgr_map_;
     static ACE_Thread_Mutex conn_mgr_lock_;
 
-	static int local_port_; // 本地端口，用于消息转发
+	static int local_port_; // 本地监听端口
 };
 
 #endif //_ISGW_MGR_SVC_H_

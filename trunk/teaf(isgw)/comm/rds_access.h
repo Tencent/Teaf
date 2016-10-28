@@ -25,7 +25,10 @@ class RdsSvr {
 
 public:
     struct Handle {
-        Handle() : rc(NULL), mutex(NULL), ip(), port(0), dbid(0) {}
+        Handle() : rc(NULL), mutex(NULL), ip(), port(0), dbid(0)
+        {
+            timeout = (struct timeval){0};
+        }
         redisContext *rc;
         ACE_Thread_Mutex *mutex;
         string ip;
@@ -39,7 +42,7 @@ public:
     static RdsSvr &instance();
 
     //删除指定key
-    int del_key(string dbid, string &uin, string &custom_key);
+    int del_key(string dbid, const string &uin, const string &custom_key);
     //对指定key设置过期时间
     int expire_key(const string& dbid, const string& uin, const string& custom_key, int seconds, int flag=0);
     //得到redis服务器上的unix时间
@@ -48,20 +51,20 @@ public:
     int ttl(const std::string& key);
     //查询指定key下的string类型的数据
     int get_string_val(string dbid
-                       , string &uin
-                       , string &custom_key
+                       , const string &uin
+                       , const string &custom_key
                        , string &value);
     //设置指定key下的string类型的数据
     int set_string_val(string dbid
-                        , string &uin
-                        , string &custom_key
-                        , string &value
-                        , string expire="");
+                        , const string &uin
+                        , const string &custom_key
+                        , const string &value
+                        , const string expire="");
     //对指定key的string类型数据做增减操作
     //该key下的数据必须为数字
     int inc_string_val(string dbid
-                        , string &uin
-                        , string &custom_key
+                        , const string &uin
+                        , const string &custom_key
                         , string &value);
 
     // 更新指定key，并原子返回原先的值
@@ -70,35 +73,41 @@ public:
                         , const std::string& nvalue
                         , std::string& ovalue);
 
+/*-----------------sorted set---------------------------*/
     //查询指定key下sorted-set数据列表
     int get_sset_list(string dbid
-                        , string &ssid
+                        , const string &ssid
                         , vector<SSPair> &elems
                         , int start
                         , int num
                         , int flag);
     //查询指定key下sorted-set数据的指定member的排名
     int get_sset_rank(string dbid
-                        , string &ssid
+                        , const string &ssid
                         , vector<SSPair> &elems
                         , int flag);
+    //查询指定key下sorted-set数据的指定member的分数
+    int get_sset_score(string dbid
+                        , const string &ssid
+                        , vector<SSPair> &elems);
     //更新指定key下sorted-set数据的指定member的score值
     //如果已经存在改member，则将其覆盖
     int set_sset_list(const string& dbid
                         , const string &ssid
-                        , vector<SSPair> &elems
+                        , const vector<SSPair> &elems
                         , int &num);
     //增量的设置指定每个member的score变化值
     int inc_sset_list(string dbid
-                        , string &ssid
+                        , const string &ssid
                         , SSPair &elem);
     //删除指定key下sorted-set数据的指定member
     int del_sset_list(string dbid
-                        , string &ssid
-                        , vector<SSPair> &elems
+                        , const string &ssid
+                        , const vector<SSPair> &elems
                         , int &num);
     //查询指定key下sorted-set数据的member个数
-    int get_sset_num(string dbid, string &ssid);
+    int get_sset_num(string dbid, const string &ssid);
+/*-----------------sorted set---------------------------*/
 
     //获取hash表中指定field的value值
     int get_hash_field(string dbid
@@ -106,19 +115,20 @@ public:
                         , const vector<string> &fields
                         , map<string, string> &value);
     //获取hash表中field/value列表
-    int get_hash_field_all(string dbid, string &hkey, std::map<string, string> &elems);
+    int get_hash_field_all(string dbid, const string &hkey, std::map<string, string> &elems);
     //设置hash表中指定field的value值
-    int set_hash_field(string dbid, string &hkey, std::map<string, string> &elems);
+    int set_hash_field(string dbid, const string &hkey, const std::map<string, string> &elems);
 
     //增加hash表中指定field的值并返回
     int inc_hash_field(const string& dbid
                         , const string& hkey
                         , const string& field
-                        , int& value);                        
+                        , int& value);
     //删除hash表中指定field的value值
     int del_hash_field(string dbid, const string &hkey, const string &field);
     // 返回哈希表中field数目，失败返回-1
     int get_hash_field_num(const string &hkey);
+    int hexists(const std::string &hkey, const std::string& field);
 
     // 返回列表元素个数，默认dbid为0
     int get_list_num(const std::string& list);
@@ -131,7 +141,13 @@ public:
 
     // 发送消息到指定频道
     int pub_msg(const std::string& channel, const std::string& msg);
-    
+
+    // 向列表边添加数据,默认从右边开始添加
+    int push_list_value(const std::string& list_name, std::string& value, uint32_t left = 0);
+
+    // 从一侧弹数据出栈
+    int pop_list_value(const std::string& list_name, std::string& value, uint32_t left = 0);
+
     //执行指定的lua脚本
     int eval_exec(string dbid
                     , const string &script
@@ -169,14 +185,17 @@ private:
                         , const string expire=""
                         , const int flag=0);
 
+    // master redis server list
     std::vector<Handle> m_redis_list_;
+
+    // slave redis server list
     std::vector<Handle> s_redis_list_;
     struct timeval timeout_;
     int port_;
     char master_ip_[128];
     char slave_ip_[128];
     char passwd_[64];
-    int inited;
+    static int inited;
 };
 
 #endif 

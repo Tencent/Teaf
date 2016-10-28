@@ -103,7 +103,7 @@ void Stat::incre_stat(int index, int incre)
 //累计指令统计信息,cmd的范围是[0,10239]
 void Stat::add_stat(ReprtInfo *info)
 {
-    if(info->cmd<0||info->cmd>MAX_STAT_INDEX) 
+    if(info->cmd>MAX_STAT_INDEX) 
         return;
     
     int pos = (info->cmd)*(sizeof(ReprtInfo)-sizeof(int))+sizeof(int);

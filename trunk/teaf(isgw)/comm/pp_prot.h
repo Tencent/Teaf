@@ -117,7 +117,7 @@ typedef enum _PP_CMD
 
 ///模块版本号
 #ifndef SERVER_VERSION 
-#define SERVER_VERSION "isgw_v1.0"
+#define SERVER_VERSION "isgw_v3.4"
 #endif 
 
 ///其他字段名(可选)
@@ -172,16 +172,17 @@ typedef struct stPriProAck
     uint32 seq_no;
     uint32 cmd;     //命令字
     struct timeval tv_time;   //对应请求消息获得时间
+    struct timeval p_start;   //对应请求开始被工作线程处理的时间
     uint32 rflag; // 消息是否透传的标志
     uint32 index; //消息在队列中的下标
-    uint32 time; //原始请求的时间
-    uint32 total_span;      //本请求在isgw中总的处理时间,单位为100us
+    uint32 time; //原始请求收到的时间
+    uint32 total_span;      //本请求总的处理时间(包括procs_span),单位为100us
     uint32 procs_span;    //本请求在响应处理函数中的处理时间,单位为100us
     int ret;      //本请求的返回状态
     uint32 msg_len; //后面的有效消息长度
     char msg[MAX_INNER_MSG_LEN+1]; //存放结果，包括返回值和相应的信息，如果错误时存放错误描述
     stPriProAck():sock_fd(0),protocol(0),sock_ip(0),sock_port(0),sock_seq(0)
-        ,seq_no(0),cmd(0),time(0),total_span(0),procs_span(0),ret(0),rflag(0)
+        ,seq_no(0),cmd(0),rflag(0),index(0),time(0),total_span(0),procs_span(0),ret(0)
         ,msg_len(0){}; //,msg({0}) 
 }PriProAck;
 

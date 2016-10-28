@@ -474,10 +474,7 @@ int ISGWCIntf::recvq(PPMsg*& msg, ACE_Time_Value* time_out)
 {
     int ret = 0;
     
-    ACE_DEBUG((LM_TRACE,
-        "[%D] ISGWCIntf before recvq,msg count %d\n"
-        , queue_.message_count()
-        ));
+    ACE_DEBUG((LM_TRACE, "[%D] ISGWCIntf before recvq\n" ));
     
     ret = queue_.dequeue(msg, time_out);
     if ( msg == NULL || ret == -1 )
@@ -487,10 +484,7 @@ int ISGWCIntf::recvq(PPMsg*& msg, ACE_Time_Value* time_out)
             ));
         return ret;
     }
-    ACE_DEBUG((LM_TRACE,
-        "[%D] ISGWCIntf after recvq,msg count %d\n"
-        , queue_.message_count()
-        ));
+    ACE_DEBUG((LM_TRACE, "[%D] ISGWCIntf after recvq,msg count %d\n", ret));
     
     return ret;
 }

@@ -32,8 +32,8 @@ int ACE_TMAIN(int argc, ACE_TCHAR *argv[])
     }
     
     ACE_INET_Addr svr_addr(atoi(argv[2]),argv[1]);
-    ACE_Time_Value time_out(1); //等待 1 s 
-    ACE_Time_Value zero(0,0); //不等待 立即返回 
+    //ACE_Time_Value time_out(1); //等待 1 s 
+    //ACE_Time_Value zero(0,0); //不等待 立即返回 
     ACE_Time_Value *time_null=NULL; //会导致永久阻塞
     
     int send_len = 0;
@@ -115,7 +115,7 @@ int ACE_TMAIN(int argc, ACE_TCHAR *argv[])
 
         // 接收消息 
         memset(buffer, 0, sizeof(buffer));
-        recv_len = peer.recv(buffer, sizeof(buffer), &time_out);
+        recv_len = peer.recv(buffer, sizeof(buffer)); //, &time_out
         if(recv_len>0)
         {
             ACE_DEBUG((LM_INFO, "[%D] recv_len=%d,msg is ", recv_len));

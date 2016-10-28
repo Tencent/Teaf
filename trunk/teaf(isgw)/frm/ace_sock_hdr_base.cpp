@@ -19,7 +19,7 @@ AceSockHdrBase::~AceSockHdrBase()
         //",remote host name=%s"
         ",addr=%s"
         ",fd=%d"
-        ",system errno=%d"
+        ",errno=%d"
         ",errmsg=%s"
         "\n"
         //, remote_addr_.get_host_name()        //需要连接nscd服务,影响系能
@@ -36,6 +36,7 @@ int AceSockHdrBase::open(void* p)
 {
     if (super::open(p) != 0)
     {
+        ACE_DEBUG((LM_ERROR, "[%D] AceSockHdrBase super::open failed\n"));
         return -1;
     }
     

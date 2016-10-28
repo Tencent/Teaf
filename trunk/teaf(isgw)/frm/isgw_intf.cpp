@@ -44,7 +44,7 @@ int ISGWIntf::open(void* p)
 
 #ifndef MSG_LEN_SIZE  
 //纯文本协议，以特殊字符作为结束符
-int ISGWIntf::handle_input(ACE_HANDLE /*fd = ACE_INVALID_HANDLE*/)
+int ISGWIntf::handle_input(ACE_HANDLE fd) //= ACE_INVALID_HANDLE
 {
     lastrtime_ = ISGWAck::instance()->get_time();
     //接收消息
@@ -55,17 +55,21 @@ int ISGWIntf::handle_input(ACE_HANDLE /*fd = ACE_INVALID_HANDLE*/)
         case -1:
         {
             ACE_DEBUG((LM_ERROR, "[%D] ISGWIntf recv failed"
-				",ret=%d"
+                ",ret=%d"
                 ",errno=%d"
                 ",errmsg=%s"
                 ",ip=%s"
+                ",fd=%d"
+                ",handle=%d"
                 "\n"
                 , ret
                 , errno
                 , strerror(errno)
                 , remote_addr_.get_host_addr()
+                , fd
+                , get_handle()
                 ));
-			if (errno == EWOULDBLOCK || errno == EAGAIN || errno == EINPROGRESS)
+            if (errno == EWOULDBLOCK || errno == EAGAIN || errno == EINPROGRESS)
             {
                 return 0;
             }
@@ -84,7 +88,7 @@ int ISGWIntf::handle_input(ACE_HANDLE /*fd = ACE_INVALID_HANDLE*/)
         break;
         default: //接收成功
         recv_len_ += ret;
-        ACE_DEBUG((LM_TRACE, "[%D] ISGWIntf recv succ,recv_len=%d,ret=%d,recv_buf=%s\n"
+        ACE_DEBUG((LM_NOTICE, "[%D] ISGWIntf recv succ,recv_len=%d,ret=%d,recv_buf=%s\n"
             , recv_len_, ret, recv_buf_));
 
         //粗略判断消息是否结束(即是否已经有一个完整的消息包)
@@ -208,7 +212,7 @@ int ISGWIntf::handle_input(ACE_HANDLE /*fd = ACE_INVALID_HANDLE*/)
         break;
         case 0:
         {
-            ACE_DEBUG((LM_TRACE, "[%D] ISGWIntf recv failed"
+            ACE_DEBUG((LM_NOTICE, "[%D] ISGWIntf recv failed"
 				",connection closed by foreign host"
                 ",ret=%d,ip=%s\n"
                 , ret, remote_addr_.get_host_addr()));
@@ -217,7 +221,7 @@ int ISGWIntf::handle_input(ACE_HANDLE /*fd = ACE_INVALID_HANDLE*/)
         break;
         default: //接收成功
         recv_len_ += ret;
-        ACE_DEBUG((LM_TRACE, "[%D] ISGWIntf recv succ,ret=%d"
+        ACE_DEBUG((LM_NOTICE, "[%D] ISGWIntf recv succ,ret=%d"
             ",recv_buf_=%s\n"
             , ret, recv_buf_
             ));
@@ -373,6 +377,8 @@ int ISGWIntf::process(char* msg, int sock_fd, int sock_seq, int msg_len)
         return -1;
     }
     memset(req, 0x0, sizeof(PPMsg));
+    req->cmd = 0;
+    
     req->index = index;
     req->seq_no = msg_seq_++;
     req->sock_fd = sock_fd;
@@ -380,7 +386,7 @@ int ISGWIntf::process(char* msg, int sock_fd, int sock_seq, int msg_len)
     req->sock_ip = remote_addr_.get_ip_address();
     req->sock_port = remote_addr_.get_port_number();
     req->sock_seq = sock_seq;
-    //req->cmd = 0;
+    
     ::gettimeofday(&(req->tv_time), NULL);
     memcpy(req->msg, msg, msg_len);
     req->msg_len = msg_len;

@@ -26,8 +26,8 @@
 #define MAX_DB_USER_LEN 32
 #define MAX_DB_PSWD_LEN 64
 #define MAX_ERROR_LEN 128
-#define DB_CONN_MAX 100  //DB 连接池最大连接数
-#define POOL_CONN_DEF 10  //连接池缺省连接数
+#define DB_CONN_MAX 200  //DB 连接池最大连接数
+#define POOL_CONN_DEF 20  //连接池缺省连接数
 
 //typedef unsigned int UINT;
 
@@ -61,6 +61,7 @@ private:
     PlatDbConn* get_db_conn(int index); //从连接池获取一个连接，第index个，保证和锁的序号一致性
     unsigned int get_conn_index(unsigned int uin=0); //获得连接的下标
     int32_t stat_return(const int32_t result, timeval* start, const char* sql="");
+    int is_legal(const char* sql);
 
 private:
     PlatDbConn* db_conn_[DB_CONN_MAX];

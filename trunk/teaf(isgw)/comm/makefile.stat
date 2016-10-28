@@ -1,6 +1,6 @@
 CXX=g++
 CFLAGS= -g -D_STAT_DEMO_
-INCLUDE=-I./ -I/usr/local/include/ace
+INCLUDE=-I./ -I/usr/local/include/ace -I../easyace/
 LIBS=-static -L./ -lACE -lnsl -lm -lz -lc -ldl -lpthread -lrt
 
 BINARY = stat.o

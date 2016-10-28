@@ -1,13 +1,13 @@
 CXX=g++ -g
 CFLAGS= -DPDB -DADMIN_OPER #-DISGW_USE_LUA #-DISGW_USE_ASY #-DISGW_USE_IBC  -DISGW_USE_DLL -DVIP_OPER -DWEBGAME_OPER 
-INCLUDE= -I/Users/away/Documents/software/ACE_wrappers -I./ -I/usr/local/include/ace -I../easyace/ -I/usr/local/include/mysql/ -I../comm/ -I../frm -I../../comm/
+INCLUDE= -I./ -I/data/lib/include/ace -I../easyace/ -I/usr/local/include/mysql/ -I../comm/ -I../frm -I../../comm/ -I/usr/local/include/hiredis/
 
 #ISGW_USE_DLL = 1
 ifdef ISGW_USE_DLL
 LIBS= -L./ -L/usr/local/lib/ -L../../comm/\
-      /usr/local/lib/libACE.a -lnsl -lm -lz -lc -ldl -lpthread -lrt #-llua /usr/local/lib/libmysqlclient_r.a -lhiredis
+      /data/lib/lib/libACE.a -lnsl -lm -lz -lc -ldl -lpthread -lrt #-llua /usr/local/lib/libmysqlclient_r.a -lhiredis
 else
-LIBS= -L./ -L/usr/local/lib/ -L../../comm/\
+LIBS= -L./ -L/usr/local/lib/ -L../../comm/ -L/data/lib/lib/\
       -static -lACE -lnsl -lm -lz -lc -ldl -lpthread -lrt #-llua -lmysqlclient_r -lhiredis
 endif
 

@@ -1,7 +1,11 @@
 #include <assert.h>
 #include "isgw_oper_base.h"
 #include "isgw_sighdl.h"
-//#define  ISGW_USE_LUA
+
+#ifdef ISGW_USE_REDIS
+#include "rds_access.h"
+#endif
+
 #ifdef ISGW_USE_LUA
 #include "lua_oper.h"
 #endif
@@ -44,6 +48,9 @@ IsgwOperBase* IsgwOperBase::instance()
 
 int IsgwOperBase::init()
 {
+#ifdef ISGW_USE_REDIS
+    RdsSvr::instance().init();
+#endif
     return 0;
 }
 
@@ -62,7 +69,7 @@ int IsgwOperBase::internal_process(QModeMsg& req, char* ack, int& ack_len)
         //
         case CMD_TEST:
         {
-            ACE_DEBUG((LM_INFO, "[%D] IsgwOperBase start to process CMD_TEST\n"));
+            ACE_DEBUG((LM_DEBUG, "[%D] IsgwOperBase start to process CMD_TEST\n"));
             //
 #ifdef ISGW_USE_IBC
             int max = 100;
@@ -131,6 +138,18 @@ int IsgwOperBase::internal_process(QModeMsg& req, char* ack, int& ack_len)
             return ret;
         }
         break;
+#ifdef ISGW_USE_REDIS
+        case CMD_GET_REDIS:
+        {
+            string uin = "29320361";
+            string key = "hello";
+            string value;
+            RdsSvr::instance().get_string_val("1", uin, key, value);
+            snprintf(ack, MAX_INNER_MSG_LEN, "value=%s", value.c_str());
+            return 0;
+        }
+        break;
+#endif
         case CMD_SYS_LOAD_CONF:
             reload_config();
             break;
@@ -253,6 +272,8 @@ int IsgwOperBase::is_auth(QModeMsg& req, char* ack, int& ack_len)
     return 0;
 }
 
+//!!! 注意，此回调函数是在主线程中调用的，
+//!!! 请不要做耗时的操作，不然会影响接入性能
 int IsgwOperBase::reload_config()
 {
     ACE_DEBUG((LM_INFO, "[%D] IsgwOperBase::reload_config\n"));
@@ -265,12 +286,16 @@ int IsgwOperBase::reload_config()
     return 0;
 }
 
+//!!! 注意，此回调函数是在主线程中调用的，
+//!!! 请不要做耗时的操作，不然会影响接入性能
 int IsgwOperBase::time_out()
 {
     ACE_DEBUG((LM_DEBUG, "[%D] IsgwOperBase::time_out\n"));
     return 0;
 }
 
+//!!! 注意，此回调函数是在主线程中调用的，
+//!!! 请不要做耗时的操作，不然会影响接入性能
 int IsgwOperBase::handle_close(int fd)
 {
     ACE_DEBUG((LM_DEBUG, "[%D] IsgwOperBase::handle_close,fd=%d\n",fd));

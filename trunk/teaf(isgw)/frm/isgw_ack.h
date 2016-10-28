@@ -48,7 +48,7 @@ private:
         
     }
     int process();
-    uint32_t statisitc(PPMsg* ack_msg);
+    uint32_t stat(PPMsg* ack_msg);
 
 private:
     ACE_Reactor_Notification_Strategy notify_stgy_;

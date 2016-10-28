@@ -1,8 +1,34 @@
 #include "isgw_task_base.h"
+#include "stat.h"
 
-#include <ace/Log_Msg.h>
-
-#include "easyace_all.h"
+// put 消息到异步工作线程队列
+int IsgwTaskBase::put(const char * req_buf, int len, int type)
+{
+    ACE_Message_Block *mblk = new ACE_Message_Block(len + sizeof(int) * 2);
+    if(mblk == NULL)
+    {
+        ACE_DEBUG((LM_ERROR,"[%D] IsgwTaskBase put msg failed,type=%d,info=%s\n"
+            , type, "allocate mem"));
+        return -1;
+    }
+    
+    mblk->copy((const char *)&type, sizeof(type));
+    mblk->copy((const char *)&len, sizeof(len));
+    mblk->copy(req_buf, len);
+    
+    ACE_Time_Value timeout(0, 0);
+    if(put(mblk, &timeout) < 0)
+    {
+        Stat::instance()->incre_stat(STAT_CODE_ASYNC_ENQUEUE);        
+        ACE_DEBUG((LM_ERROR, "[%D] IsgwTaskBase put msg failed,type=%d,len=%d\n"
+            , type, len));
+        return -1;
+    }
+    
+    ACE_DEBUG((LM_DEBUG,"[%D] IsgwTaskBase put msg succ,type=%d,len=%d\n"
+        , type, len));
+    return 0;
+}
 
 int IsgwTaskBase::open(void* p /*= 0*/)
 {
@@ -22,7 +48,11 @@ int IsgwTaskBase::stop()
 
 int IsgwTaskBase::init()
 {
-    SysConf::instance()->get_conf_int(conf_section_.c_str(), "thread_num", (int*)&thread_num_);
+    SysConf::instance()->get_conf_int(conf_section_.c_str(), "threads", (int*)&thread_num_);
+    if(thread_num_ <= 0)
+    {
+        thread_num_ = DEF_THREAD_NUM;
+    }
     
     size_t high_water = 0;
     if(SysConf::instance()->get_conf_int(conf_section_.c_str(), "high_water_mark", (int*)&high_water) == 0)
@@ -32,7 +62,7 @@ int IsgwTaskBase::init()
     
     ACE_DEBUG((LM_INFO, "[%D] IsgwTaskBase::init thread num=%u, high water mark=%d\n", 
         thread_num_, high_water));
-    return 0;
+    return open();
 }
 
 int IsgwTaskBase::svc()

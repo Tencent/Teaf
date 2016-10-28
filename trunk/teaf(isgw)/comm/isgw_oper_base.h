@@ -27,6 +27,7 @@ enum _PDB_BASE_CMD
 
     CMD_SELF_TEST = 2,					// Òµï¿½ï¿½ï¿½Ô²ï¿½ï¿½ï¿½ï¿½ï¿½
     CMD_GET_SERVER_VERSION = 3,		// ï¿½ï¿½È¡ï¿½ï¿½Ç°svrï¿½Ä°æ±¾ï¿½ï¿½
+    CMD_GET_REDIS = 4, //²âÊÔµ¥´Î redis ²Ù×÷ 
     CMD_SYS_LOAD_CONF = 10,             //ï¿½ï¿½ï¿½Â¼ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ï¢ 
     CMD_SYS_GET_CONTRL_STAT = 11,       //ï¿½ï¿½Ñ¯ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½×´Ì¬
     CMD_SYS_SET_CONTRL_STAT = 12,       //ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½×´Ì¬

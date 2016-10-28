@@ -113,10 +113,6 @@ int ISGWApp::init_app(int , ACE_TCHAR* [])
     {
         ACE_DEBUG((LM_ERROR, "[%D] ISGWApp init stat failed,go on.\n"));
     }
-    else
-    {
-        ACE_DEBUG(( LM_INFO, "[%D] ISGWApp init stat succ\n" ));
-    }
     
     //消息响应类
     int ack_interval = 0;

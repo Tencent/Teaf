@@ -720,14 +720,12 @@ unsigned int EASY_UTIL::get_time_days_ago(int days)
 }
 
 //格式 YYYYMMDD
-unsigned int EASY_UTIL::get_date_from_time(time_t  time)
+unsigned int EASY_UTIL::get_date_from_time(time_t time)
 {
     struct tm local_tm;
-
     localtime_r(&time, &local_tm);
-
-    return ((local_tm.tm_year+1900)*10000+(local_tm.tm_mon+1)*100+local_tm.
-tm_mday);
+    
+    return ((local_tm.tm_year+1900)*10000+(local_tm.tm_mon+1)*100+local_tm.tm_mday);
 }
 
 //根据被查看的次数、赞的次数、回复数以及时间，计算热点值
@@ -1146,7 +1144,7 @@ std::string EASY_UTIL::bin2hex(const char* data, int32_t len)
 int32_t EASY_UTIL::hex2bin(const std::string& src, char* data, int32_t& len)
 {
     size_t str_len = src.size();
-    if(str_len % 2 != 0 || str_len <= (2 * len)) return -1;
+    if(str_len % 2 != 0 || str_len >= (2 * len)) return -1;
     
     char c, b;
     bool first = true;
@@ -1170,7 +1168,7 @@ int32_t EASY_UTIL::hex2bin(const std::string& src, char* data, int32_t& len)
 // 获取随机字符串，默认随机长度5~9的字符串
 std::string EASY_UTIL::get_random_str(int32_t num)
 {
-    static char base_str[65] = "123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz?$";
+    static char base_str[65] = "123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyzABC";
     std::string str_value = "";
 
     // 以当前微秒为随机种子
@@ -1555,8 +1553,9 @@ EASY_UTIL::IPAddrMap EASY_UTIL::get_local_ip_map()
     if ( ipaddr_map.empty() ) 
     {
         const int IP_ADDR_MAX_LEN = 128;
+        const int MAX_NET_DEVICE_NUM = 32;
         struct ifconf ifc;
-        char ifcbuf[8 * sizeof(struct ifreq)]={0};
+        char ifcbuf[MAX_NET_DEVICE_NUM * sizeof(struct ifreq)]={0};
         ifc.ifc_len = sizeof(ifcbuf);
         ifc.ifc_buf = ifcbuf;
 

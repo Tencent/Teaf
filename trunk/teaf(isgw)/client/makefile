@@ -1,7 +1,7 @@
 CXX=g++
 CFLAGS=
 INCLUDE=-I../comm/ -I./
-LIBS=-static -lACE -lnsl -lm -lz -lc -ldl -lpthread -lrt 
+LIBS=-static -L/data/lib/lib -lACE -lnsl -lm -lz -lc -ldl -lpthread -lrt 
 
 BINARY = $(patsubst %.cpp,%.o,$(wildcard *.cpp))
 TARGET = client

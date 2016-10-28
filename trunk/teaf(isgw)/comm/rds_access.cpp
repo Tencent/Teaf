@@ -3,32 +3,31 @@
 #include <map>
 #include "stat.h"
 
+int RdsSvr::inited = 0;
+
 RdsSvr::RdsSvr(string & redis_sec)
 {
-    inited = 0;
     init(redis_sec);
 }
 
 RdsSvr::RdsSvr()
 {
-    inited = 0;
 }
 
 RdsSvr::~RdsSvr()
 {
 }
 
+// 没加锁 最好在单线程环境 初始化一下 
 int RdsSvr::init(string redis_sec)
 {
-    if (inited)
-    {
-        return 0;
-    }
     int conn_num = 20;
     int timeout = 500;
     port_ = 6379;
     memset(passwd_, 0, sizeof(passwd_));
-    
+    memset(master_ip_, 0, sizeof(master_ip_));
+    memset(slave_ip_, 0, sizeof(slave_ip_));
+
     SysConf::instance()->get_conf_int( redis_sec.c_str(), "time_out", (int *)&timeout);
     SysConf::instance()->get_conf_int(redis_sec.c_str(), "conn_num", (int *)&conn_num);
     SysConf::instance()->get_conf_str(redis_sec.c_str(), "slave_ip", slave_ip_, sizeof(slave_ip_));
@@ -40,7 +39,6 @@ int RdsSvr::init(string redis_sec)
     SysConf::instance()->get_conf_int(redis_sec.c_str(), "port", (int *)&port_);
     SysConf::instance()->get_conf_str(redis_sec.c_str(), "password", passwd_, sizeof(passwd_));
 
-    //timeout_ = { 0, timeout*1000 };
     struct timeval tv = { 0, timeout*1000 };
     timeout_ = tv;
     for(int i=0; i<conn_num; i++)
@@ -118,11 +116,12 @@ void RdsSvr::rst_handle(Handle * &h)
 {
     redisFree(h->rc);
     h->rc = NULL;
-    h->dbid = -1;
+//    h->dbid = -1;
+    h->dbid = 0;
     //统一在此进行失败统计  因为基本是出错了 才进行 reset
     Stat::instance()->incre_stat(STAT_CODE_RDS_RESET);
 }
-//reset rediscontext
+//select db
 int RdsSvr::sel_database(Handle * &h, int dbid)
 {
     if(NULL==h->rc)
@@ -135,10 +134,11 @@ int RdsSvr::sel_database(Handle * &h, int dbid)
         if(h->rc->err!=0)
         {
             ACE_DEBUG((LM_ERROR
-                , "[%D] RdsSvr::sel_database failed,dbid=%d,err=%x\n"
-                , dbid, h->rc->err));
+                , "[%D] RdsSvr::sel_database failed,dbid=%d,err=%x,ip=%s:%d,errstr=%s\n"
+                , dbid, h->rc->err, h->ip.c_str(),h->port, h->rc->errstr == NULL ? "" : h->rc->errstr));
             rst_handle(h);
             freeReplyObject(reply);
+            Stat::instance()->incre_stat(STAT_CODE_RDS_SEL_DB);
             return -1;
         }
         ACE_DEBUG((LM_INFO, "[%D] RdsSvr::sel_database succ,dbid=%d\n", dbid));
@@ -152,11 +152,14 @@ int RdsSvr::sel_database(Handle * &h, int dbid)
 RdsSvr &RdsSvr::instance()
 {
     static RdsSvr instance_;
-    instance_.init();
+    if (!inited)
+    {
+        instance_.init();
+    }    
     return instance_;
 }
 
-int RdsSvr::del_key(string dbid, string &uin, string &custom_key)
+int RdsSvr::del_key(string dbid, const string &uin, const string &custom_key)
 {        
     Handle *h;
     redisReply *reply = NULL;
@@ -447,8 +450,8 @@ int RdsSvr::get_string_reply(Handle * &h
 }
 
 int RdsSvr::get_string_val(string dbid,
-                            string &uin,
-                            string &custom_key,
+                            const string &uin,
+                            const string &custom_key,
                             string &value)
 {        
     Handle *h;
@@ -523,10 +526,10 @@ int RdsSvr::get_string_val(string dbid,
 }
 
 int RdsSvr::set_string_val(string dbid,
-                            string &uin,
-                            string &custom_key,
-                            string &value,
-                            string expire)
+                            const string &uin,
+                            const string &custom_key,
+                            const string &value,
+                            const string expire)
 {        
     Handle *h;
     redisReply *reply = NULL;
@@ -584,8 +587,8 @@ int RdsSvr::set_string_val(string dbid,
 //将指定key的value增减指定的数字,如果value不为数字
 //就返回错误
 int RdsSvr::inc_string_val(string dbid,
-                            string &uin,
-                            string &custom_key,
+                            const string &uin,
+                            const string &custom_key,
                             string &value)
 {        
     Handle *h;
@@ -730,7 +733,7 @@ int RdsSvr::get_set(const std::string& key
 
 //flag=1表示score降序排列,否则score升序排列
 int RdsSvr::get_sset_list(string dbid
-                            , string &ssid
+                            , const string &ssid
                             , vector<SSPair> &elems
                             , int start
                             , int num
@@ -808,15 +811,12 @@ int RdsSvr::get_sset_list(string dbid
             freeReplyObject(reply);
             return -1;
         }
-        
-        SSPair p;
-        elems.assign(reply->elements/2, p);
-        for(int idx=0; idx<reply->elements; idx++)
+        for(int idx = 0; idx < reply->elements; idx += 2)
         {
-            if(0==idx%2)
-                elems[idx/2].member = reply->element[idx]->str;
-            else
-                elems[idx/2].score = strtoll(reply->element[idx]->str, NULL, 10);
+        	SSPair pair;
+        	pair.member = reply->element[idx]->str;
+        	pair.score = strtoll(reply->element[idx+1]->str, NULL, 10);
+        	elems.push_back(pair);
         }
     }
     freeReplyObject(reply);
@@ -828,9 +828,80 @@ int RdsSvr::get_sset_list(string dbid
     return 0;
 }
 
+//查询指定key下sorted-set数据的指定member的分数
+int RdsSvr::get_sset_score(string dbid
+                    , const string &ssid
+                    , vector<SSPair> &elems)
+{
+    Handle *h;
+    redisReply *reply = NULL;
+
+    ACE_Guard<ACE_Thread_Mutex> guard(get_handle(h, 2));
+    if(sel_database(h, atoi(dbid.c_str()))!=0)
+    {
+        ACE_DEBUG((LM_ERROR
+            , "[%D] RdsSvr::get_sset_score connect redis svr failed"
+            ",dbid=%s"
+            ",ssid=%s\n"
+            , dbid.c_str()
+            , ssid.c_str()));
+        return -1;
+    }
+    for(int idx=0; idx<elems.size(); idx++)
+    {
+		reply = (redisReply *)redisCommand(h->rc, "ZSCORE %s %s"
+					, ssid.c_str()
+					, elems[idx].member.c_str());
+
+        if(NULL==reply)
+        {
+            ACE_DEBUG((LM_ERROR
+                , "[%D] RdsSvr::get_sset_score exec failed"
+                ",dbid=%s\n"
+                , dbid.c_str()));
+            rst_handle(h);
+            freeReplyObject(reply);
+            return -1;
+        }
+        else if(REDIS_REPLY_ERROR==reply->type||h->rc->err!=0)
+        {
+            ACE_DEBUG((LM_ERROR
+                , "[%D] RdsSvr::get_sset_score reply error,err=%s"
+                ",dbid=%s"
+                ",ssid=%s\n"
+                , reply->str
+                , dbid.c_str()
+                , ssid.c_str()));
+            rst_handle(h);
+            freeReplyObject(reply);
+            return -1;
+        }
+        else if(REDIS_REPLY_STRING==reply->type)
+        {
+        	elems[idx].score = strtoll(reply->str, NULL, 10);
+        }
+        else
+            ACE_DEBUG((LM_ERROR
+                , "[%D] RdsSvr::get_sset_score failed,row error"
+                ",dbid=%s"
+                ",ssid=%s"
+                ",idx=%d\n"
+                , dbid.c_str()
+                , ssid.c_str()
+                , idx));
+        freeReplyObject(reply);
+    }
+
+    ACE_DEBUG((LM_DEBUG
+        , "[%D] RdsSvr::get_sset_score succ,dbid=%s,ssid=%s\n"
+        , dbid.c_str(), ssid.c_str()));
+
+    return 0;
+}
+
 //flag=1表示score降序排列,否则score升序排列
 int RdsSvr::get_sset_rank(string dbid
-                            , string &ssid
+                            , const string &ssid
                             , vector<SSPair> &elems
                             , int flag)
 {        
@@ -907,7 +978,7 @@ int RdsSvr::get_sset_rank(string dbid
 //num返回值为成功添加的member数
 int RdsSvr::set_sset_list(const string& dbid
                             , const string &ssid
-                            , vector<SSPair> &elems
+                            , const vector<SSPair> &elems
                             , int &num)
 {
     Handle *h;
@@ -995,7 +1066,7 @@ int RdsSvr::set_sset_list(const string& dbid
 }
 
 //增量的设置指定每个member的score变化值
-int RdsSvr::inc_sset_list(string dbid, string &ssid, SSPair &elem)
+int RdsSvr::inc_sset_list(string dbid, const string &ssid, SSPair &elem)
 {        
     Handle *h;
     redisReply *reply = NULL;
@@ -1068,7 +1139,7 @@ int RdsSvr::inc_sset_list(string dbid, string &ssid, SSPair &elem)
 }
 
 //num返回值为成功删除的member数
-int RdsSvr::del_sset_list(string dbid, string &ssid, vector<SSPair> &elems, int &num)
+int RdsSvr::del_sset_list(string dbid, const string &ssid, const vector<SSPair> &elems, int &num)
 {        
     Handle *h;
     redisReply *reply = NULL;
@@ -1157,7 +1228,7 @@ int RdsSvr::del_sset_list(string dbid, string &ssid, vector<SSPair> &elems, int 
 }
 
 //返回值为指定sorted-set的成员个数
-int RdsSvr::get_sset_num(string dbid, string &ssid)
+int RdsSvr::get_sset_num(string dbid, const string &ssid)
 {
     Handle *h;
     redisReply *reply = NULL;
@@ -1343,7 +1414,7 @@ int RdsSvr::get_hash_field(string dbid
 
 //获取hash表中field/value列表
 int RdsSvr::get_hash_field_all(string dbid
-                                , string &hkey
+                                , const string &hkey
                                 , std::map<string, string> &elems)
 {
     Handle *h;
@@ -1439,12 +1510,9 @@ int RdsSvr::get_hash_field_all(string dbid
 }
 
 //设置hash表中指定field的value值
-// 返回值
-// =1表示新的Field被设置了新值
-// =0表示Field已经存在，用新值覆盖原有值。
 int RdsSvr::set_hash_field(string dbid
-                            , string &hkey
-                            , std::map<string, string> &elems)
+                            , const string &hkey
+                            , const std::map<string, string> &elems)
 {
     Handle *h;
     redisReply *reply = NULL;
@@ -1470,7 +1538,7 @@ int RdsSvr::set_hash_field(string dbid
     args[idx++] = hkey;
     
     // 填充元素
-    for(std::map<string, string>::iterator it=elems.begin(); it!=elems.end(); it++)
+    for(std::map<string, string>::const_iterator it=elems.begin(); it!=elems.end(); it++)
     {
         args[idx++] = it->first;
         args[idx++] = it->second;
@@ -1742,6 +1810,77 @@ int RdsSvr::get_hash_field_num(const string &hkey)
     return ret;
 }
 
+// 检查哈希表中是否存在field，返回值定义
+// 0: 记录不存在
+// 1: 记录存在
+// -1: 失败
+int RdsSvr::hexists(const std::string &hkey, const std::string& field)
+{
+    Handle *h;
+    redisReply *reply = NULL;
+    ACE_Guard<ACE_Thread_Mutex> guard(get_handle(h));
+    
+    // 填充 cmd 与 key
+    std::vector<std::string> args;
+    args.push_back("HEXISTS");
+    args.push_back(hkey);
+    args.push_back(field);
+    
+    std::vector<const char *> argv(args.size());
+    std::vector<size_t> argvlen(args.size());
+    for(size_t i = 0;i < args.size();i++)
+    {
+        argv[i] = args[i].data();
+        argvlen[i] = args[i].length();
+    }
+    reply = (redisReply *)redisCommandArgv(h->rc, argv.size(), &(argv[0]), &(argvlen[0]));
+    if(NULL==reply)
+    {
+        ACE_DEBUG((LM_ERROR
+            , "[%D] RdsSvr::hexists exec failed,hkey=%s,field=%s\n"
+            , hkey.c_str()
+            , field.c_str()
+            ));
+        rst_handle(h);
+        freeReplyObject(reply);
+        return -1;
+    }
+    else if(REDIS_REPLY_ERROR==reply->type||h->rc->err!=0)
+    {
+        ACE_DEBUG((LM_ERROR
+            , "[%D] RdsSvr::hexists reply error,hkey=%s,field=%s,err=%s\n"
+            , hkey.c_str()
+            , field.c_str()
+            , reply->str
+            ));
+        rst_handle(h);
+        freeReplyObject(reply);
+        return -1;
+    }
+    
+    if(reply->type != REDIS_REPLY_INTEGER)
+    {
+        ACE_DEBUG((LM_ERROR
+            , "[%D] RdsSvr::hexists failed,hkey=%s,field=%s,err=%s\n"
+            , hkey.c_str()
+            , field.c_str()
+            , reply->str
+            ));
+        freeReplyObject(reply);
+        return -1;
+    }
+
+    int32_t ret =reply->integer;
+    freeReplyObject(reply);
+    ACE_DEBUG((LM_DEBUG
+        , "[%D] RdsSvr::hexists succ,hkey=%s,field=%s,num=%d\n"
+        , hkey.c_str()
+        , field.c_str()
+        , ret
+        ));
+    return ret;
+}
+
 // 返回列表元素个数，默认dbid为0
 int RdsSvr::get_list_num(const std::string& list)
 {        
@@ -1756,13 +1895,12 @@ int RdsSvr::get_list_num(const std::string& list)
         ACE_DEBUG((LM_ERROR
             , "[%D] RdsSvr::get_list_num exec failed,list=%s\n", list.c_str()));
         rst_handle(h);
-        freeReplyObject(reply);
         return -1;
     }
     else if(REDIS_REPLY_ERROR==reply->type||h->rc->err!=0)
     {
         ACE_DEBUG((LM_ERROR
-            , "[%D] RdsSvr::get_list_num reply error,err=%s"
+            , "[%D] RdsSvr::get_list_num reply failed,err=%s"
             ",list=%s\n"
             , reply->str
             , list.c_str()));
@@ -1809,13 +1947,12 @@ int RdsSvr::get_list_range(const std::string& list
         ACE_DEBUG((LM_ERROR
             , "[%D] RdsSvr::get_list_range exec failed,list=%s\n", list.c_str()));
         rst_handle(h);
-        freeReplyObject(reply);
         return -1;
     }
     else if(REDIS_REPLY_ERROR==reply->type||h->rc->err!=0)
     {
         ACE_DEBUG((LM_ERROR
-            , "[%D] RdsSvr::get_list_range reply error,err=%s"
+            , "[%D] RdsSvr::get_list_range reply failed,err=%s"
             ",list=%s\n"
             , reply->str
             , list.c_str()));
@@ -2032,7 +2169,22 @@ int RdsSvr::eval_multi_command(const string &script
         return -1;
     }
     
-    if(REDIS_REPLY_ARRAY == reply->type)
+    if(reply->type == REDIS_REPLY_NIL)
+    {
+        ACE_DEBUG((LM_ERROR
+            , "[%D] RdsSvr::eval_multi_command reply nil,script=%s\n", script.c_str()));
+        freeReplyObject(reply);
+        return -1;
+    }
+    else if(reply->type == REDIS_REPLY_INTEGER)
+    {
+        res.push_back(EASY_UTIL::to_string(reply->integer));
+    }
+    else if(reply->type == REDIS_REPLY_STRING)
+    {
+        res.push_back(reply->str);
+    }
+    else if(REDIS_REPLY_ARRAY == reply->type)
     {
         res.assign(reply->elements, "");
         for(int idx=0; idx<reply->elements; idx++)
@@ -2054,9 +2206,7 @@ int RdsSvr::eval_multi_command(const string &script
     else
     {
         ACE_DEBUG((LM_ERROR
-            , "[%D] RdsSvr::eval_multi_command failed"
-            ",errinfo=%s,type=%d\n"
-            , reply->str, reply->type));
+            , "[%D] RdsSvr::eval_multi_command failed,type=%d\n", reply->type));
         freeReplyObject(reply);
         return -1;
     }
@@ -2064,3 +2214,155 @@ int RdsSvr::eval_multi_command(const string &script
     return 0;
 }
 
+int RdsSvr::push_list_value(const std::string& list_name, std::string& value, uint32_t left)
+{
+    Handle *h;
+    redisReply *reply = NULL;
+    ACE_Guard<ACE_Thread_Mutex> guard(get_handle(h, 2));
+    std::string cmd_str = "";
+    int ret = 0;
+
+    if (left)
+    {
+        cmd_str = "LPUSH";
+    }
+    else
+    {
+        cmd_str = "RPUSH";
+    }
+
+    // 填充 cmd 与 key
+    std::vector<std::string> args(3);
+    args[0] = cmd_str;
+    args[1] = list_name;
+    args[2] = value;
+    
+    std::vector<const char *> argv(args.size());
+    std::vector<size_t> argvlen(args.size());
+    for(size_t i = 0;i < args.size();i++)
+    {
+        argv[i] = args[i].data();
+        argvlen[i] = args[i].length();
+    }
+    reply = (redisReply *)redisCommandArgv(h->rc, argv.size(), &(argv[0]), &(argvlen[0]));
+ 
+    if (NULL == reply)
+    {
+        ACE_DEBUG((LM_ERROR, "[%D] RdsSvr::list_push exec failed,list_name=%s,value=%s\n"
+            , list_name.c_str()
+            , value.c_str()));
+        rst_handle(h);
+        return -1;
+    }
+    else if (REDIS_REPLY_ERROR == reply->type || h->rc->err != 0)
+    {
+        ACE_DEBUG((LM_ERROR, "[%D] RdsSvr::list_push reply failed,errinfo=%s,errno=%d,list_name=%s,value=%s\n"
+            , reply->str
+            , h->rc->err
+            , list_name.c_str()
+            , value.c_str()));
+        rst_handle(h);
+        freeReplyObject(reply);
+        return -1;
+    }
+
+    if (REDIS_REPLY_INTEGER == reply->type)
+    {
+        ret = (int)reply->integer;
+    }
+    else
+    {
+        ACE_DEBUG((LM_ERROR, "[%D] RdsSvr::list_push failed,list_name=%s,rtype=%d,errinfo=%s\n"
+            , list_name.c_str()
+            , reply->type
+            , reply->str == NULL ? "" : reply->str
+            ));
+        freeReplyObject(reply);
+        return -1;
+    }
+    
+    ACE_DEBUG((LM_DEBUG, "[%D] RdsSvr::list_push succ,list_name=%s,value=%s,errinfo=%s,ret=%d\n"
+        , list_name.c_str()
+        , value.c_str()
+        , reply->str == NULL ? "" : reply->str
+        , ret));
+
+    freeReplyObject(reply);
+    return ret;
+}
+
+int RdsSvr::pop_list_value(const std::string& list_name, std::string& value, uint32_t left)
+{
+    Handle *h;
+    redisReply *reply = NULL;
+    ACE_Guard<ACE_Thread_Mutex> guard(get_handle(h, 2));
+    std::string cmd_str = "";
+
+    if (left)
+    {
+        cmd_str = "LPOP";
+    }
+    else
+    {
+        cmd_str = "RPOP";
+    }
+
+    // 填充 cmd 与 key
+    std::vector<std::string> args(2);
+    args[0] = cmd_str;
+    args[1] = list_name;
+    
+    std::vector<const char *> argv(args.size());
+    std::vector<size_t> argvlen(args.size());
+    for(size_t i = 0;i < args.size();i++)
+    {
+        argv[i] = args[i].data();
+        argvlen[i] = args[i].length();
+    }
+    reply = (redisReply *)redisCommandArgv(h->rc, argv.size(), &(argv[0]), &(argvlen[0]));
+
+    if (NULL == reply)
+    {
+        ACE_DEBUG((LM_ERROR, "[%D] RdsSvr::list_pop_value exec failed,list_name=%s\n"
+            , list_name.c_str()));
+        rst_handle(h);
+        return -1;
+    }
+    else if (REDIS_REPLY_ERROR == reply->type || h->rc->err != 0)
+    {
+        ACE_DEBUG((LM_ERROR, "[%D] RdsSvr::list_pop_value reply failed,errinfo=%s,errno=%d,list_name=%s\n"
+            , reply->str
+            , h->rc->err
+            , list_name.c_str()));
+        rst_handle(h);
+        freeReplyObject(reply);
+        return -1;
+    }
+
+    if (REDIS_REPLY_STRING == reply->type)
+    {
+        value = reply->str;
+    }
+    else if (REDIS_REPLY_NIL == reply->type)
+    {
+        freeReplyObject(reply);
+        return 1;
+    }
+    else
+    {
+        ACE_DEBUG((LM_ERROR, "[%D] RdsSvr::list_pop_value failed,list_name=%s,rtype=%d,errinfo=%s\n"
+            , list_name.c_str()
+            , reply->type
+            , reply->str == NULL ? "": reply->str));
+        freeReplyObject(reply);
+        return -1;
+    }
+    
+    ACE_DEBUG((LM_DEBUG, "[%D] RdsSvr::list_pop_value succ,list_name=%s,value=%s,errinfo=%s\n"
+        , list_name.c_str()
+        , value.c_str()
+        , reply->str == NULL ? "" : reply->str));
+
+    freeReplyObject(reply);
+    return 0;
+}
