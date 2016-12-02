@@ -34,3 +34,5 @@ int process(QModeMsg& req, char* ack, int& ack_len);
 #样例程序
 svr/ 目录下有几个样例程序 比如 pdb_oper.cpp  *oper.cpp
 可以在svr目录下 make 编译体验一下 编译的时候注意需要依赖的库(如果没有mysql可以删掉跟db相关的文件即可)
+
+#问题和技术交流QQ群 379103538
