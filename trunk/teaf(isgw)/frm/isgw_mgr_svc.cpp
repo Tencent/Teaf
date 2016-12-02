@@ -19,7 +19,7 @@ CmdAmntCntrl *ISGWMgrSvc::freq_obj_=NULL;
 
 ISGWMgrSvc* ISGWMgrSvc::instance_ = NULL;
 int ISGWMgrSvc::rflag_=0;
-int ISGWMgrSvc::ripnum_=0;
+int ISGWMgrSvc::rtnum_=0;
 
 map<string, PlatConnMgrAsy*> ISGWMgrSvc::route_conn_mgr_map_;
 ACE_Thread_Mutex ISGWMgrSvc::conn_mgr_lock_;
@@ -94,7 +94,7 @@ int ISGWMgrSvc::init()
         
         idx++;
     }
-    ripnum_ = idx; // 记录配置的ip数量 
+    rtnum_ = idx; // 记录配置的 router 数量 
 
     // 本地监听端口
     SysConf::instance()->get_conf_int("system", "port", &local_port_);
@@ -592,10 +592,10 @@ int ISGWMgrSvc::forward(QModeMsg& qmode_req, int rflag, unsigned int uin)
             ret = -1;
         }
     }
-    else // 用配置的 
+    else // 用配置的 ，启动的时候已经初始化
     {
         int fail_count = 0;
-        for(int idx=0; idx<ripnum_; idx++)
+        for(int idx=0; idx<rtnum_; idx++)
         {
             snprintf(appname, sizeof(appname), "router_%d", idx);
             // 异步发送的时候 == 0 是成功的 
@@ -609,7 +609,7 @@ int ISGWMgrSvc::forward(QModeMsg& qmode_req, int rflag, unsigned int uin)
         }
 
         // 未配置转发ip、转发均失败
-        if(ripnum_ <= 0 || fail_count == ripnum_)
+        if(rtnum_ <= 0 || fail_count == rtnum_)
         {
             ret = -1;
         }

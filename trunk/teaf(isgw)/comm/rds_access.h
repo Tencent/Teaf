@@ -15,10 +15,11 @@
 #include "hiredis/hiredis.h"
 
 struct SSPair{
-    SSPair() : score(0), rank(0) {}
+    SSPair() : score(0), rank(0), has_err(0) {}
     string member;
     int64_t score;
     long long rank;
+    int32_t has_err;
 };
 
 class RdsSvr {

@@ -79,7 +79,7 @@ private:
     //rflag_=1,打开路由功能，并且只做路由转发
     //rflag_=2,打开路由功能，并且也做消息处理
     static int rflag_; //路由功能的开关
-    static int ripnum_; //配置的路由ip的数量 
+    static int rtnum_; //配置的路由的数量 
     //key:appname 
     static map<string, PlatConnMgrAsy*> route_conn_mgr_map_;
     static ACE_Thread_Mutex conn_mgr_lock_;

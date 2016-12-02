@@ -5,17 +5,21 @@
 
 ACE_Thread_Mutex PlatConnMgrAsy::conn_mgr_lock_;
 
-//key: fd seq/ip   value: status 
+//key: ip:fd   value: status 
 //以ip 为key 的时候 同一个ip上就不能支持多个连接了 也就是不能支持转发到多个端口 
 typedef map<string, int> CONN_STATUS_MAP;
 static CONN_STATUS_MAP conn_status_; //存放连接信息 
 
 int set_conn_status(string ip, int status)
 {
+    if(status == 0) 
+    {
+        conn_status_.erase(ip);
+        return 0;
+    }
+    
     //直接修改连接状态，此处不要加锁
     conn_status_[ip] = status;
-
-    // 如果连接信息过多 需要清理    
     return 0;
 }
 
@@ -24,7 +28,6 @@ int get_conn_status(string ip)
     return conn_status_[ip];
 }
 
-// 异步连接的时候，每个ip只需要一个连接即可
 PlatConnMgrAsy::PlatConnMgrAsy()
 {
     memset(section_, 0x0, sizeof(section_));
@@ -37,12 +40,16 @@ PlatConnMgrAsy::PlatConnMgrAsy()
 
 PlatConnMgrAsy::PlatConnMgrAsy(const char*host_ip, int port)
 {
-    ip_num_ = 1;
-    snprintf(ip_[0], sizeof(ip_[0]), "%s", host_ip);
     port_ = port;
-    
     time_out_.set(SOCKET_TIME_OUT);
     memset(&conn_info_, 0x0, sizeof(conn_info_));
+    ip_num_ = IP_NUM_MAX;
+    
+    for(int i = 0; i < ip_num_; ++i)
+    {
+        snprintf(ip_[i], sizeof(ip_[i]), "%s", host_ip);
+        init_conn(i);
+    }
 }
 
 PlatConnMgrAsy::~PlatConnMgrAsy()
@@ -90,7 +97,7 @@ int PlatConnMgrAsy::init(const char *section)
         }
     }
     
-    if (ip_num_ == 0) //一个ip都没有 
+    if (ip_num_ == 0) 
     {
         ACE_DEBUG((LM_ERROR, "[%D] PlatConnMgrAsy init failed"
             ",section=%s,ip_num=%d\n", section_, ip_num_));
@@ -138,9 +145,8 @@ int PlatConnMgrAsy::init_conn(int ip_idx, const char *ip, int port)
     //这里需要再判断一次,如果已经建立好了连接则返回
     if (0 == is_estab(ip_idx))
     {
-        ACE_DEBUG((LM_ERROR,
-            "[%D] PlatConnMgrAsy send msg failed"
-            ",intf is disconn"
+        ACE_DEBUG((LM_DEBUG,
+            "[%D] PlatConnMgrAsy init_conn,intf is already connected"
             ",ip_idx=%d\n"
             , ip_idx
             ));
@@ -171,7 +177,6 @@ int PlatConnMgrAsy::init_conn(int ip_idx, const char *ip, int port)
     }
     
     ACE_INET_Addr svr_addr(port_, ip_[ip_idx]);
-    //ACE_Synch_Options my_option(0, ACE_Time_Value::zero, &conn_info_);
     ISGW_CONNECTOR connector;
     conn_info_[ip_idx].intf = new ISGWCIntf();
     if (connector.connect(conn_info_[ip_idx].intf, svr_addr) != 0) //, my_option
@@ -197,9 +202,9 @@ int PlatConnMgrAsy::init_conn(int ip_idx, const char *ip, int port)
         , conn_info_[ip_idx].sock_seq
         , &conn_info_
         ));
-    //ostringstream os;
-    //os<<conn_info_[ip_idx].sock_fd<<" "<<conn_info_[ip_idx].sock_seq;
-    set_conn_status(ip_[ip_idx], 1);
+    ostringstream os;
+    os<<ip_[ip_idx]<<":"<<conn_info_[ip_idx].sock_fd;
+    set_conn_status(os.str(), 1);
     return 0;
 }
 
@@ -209,7 +214,7 @@ int PlatConnMgrAsy::send(const void * buf, int len, const unsigned int uin)
     if (is_estab(ip_idx) != 0)
     {
         ACE_DEBUG((LM_ERROR,
-            "[%D] PlatConnMgrAsy send msg failed"
+            "[%D] PlatConnMgrAsy send failed"
             ",intf is disconn"
             ",ip_idx=%d\n"
             , ip_idx
@@ -257,19 +262,17 @@ int PlatConnMgrAsy::send(const void * buf, int len, const unsigned int uin)
     return 0;
 }
 
-//#ifdef ISGW_USE_ASY
 int PlatConnMgrAsy::send(const void * buf, int len, ASYRMsg & rmsg, const unsigned int uin)
 {
 	ASYTask::instance()->insert(rmsg);
 	return send(buf, len, uin);
 }
-//#endif
 
 int PlatConnMgrAsy::get_ip_idx(const unsigned int uin)
 {
     if (uin == 0)
     {
-        return time(0)%ip_num_;
+        return rand()%ip_num_;
     }
     
     return uin%ip_num_;
@@ -277,27 +280,13 @@ int PlatConnMgrAsy::get_ip_idx(const unsigned int uin)
 
 int PlatConnMgrAsy::is_estab(int ip_idx)
 {
-    /*
-    ACE_Event_Handler* eh = ACE_Reactor::instance()
-            ->find_handler(conn_info_[ip_idx].sock_fd);
-    AceSockHdrBase* intf = dynamic_cast<AceSockHdrBase*>(eh); //
-    if (intf == NULL || intf->get_seq() != conn_info_[ip_idx].sock_seq)
+    //ISGWCIntf 里面会清理连接状态，这里只需要判断即可
+    ostringstream os;
+    os<<ip_[ip_idx]<<":"<<conn_info_[ip_idx].sock_fd;
+    if (get_conn_status(os.str()) != 1)
     {
-        ACE_DEBUG((LM_ERROR,
-            "[%D] PlatConnMgrAsy find intf failed"
-            ",sock_fd=%u,sock_seq=%u\n"
-            , conn_info_[ip_idx].sock_fd
-            , conn_info_[ip_idx].sock_seq
-            ));
-        return -1;
-    }
-    */
-    //ostringstream os;
-    //os<<conn_info_[ip_idx].sock_fd<<" "<<conn_info_[ip_idx].sock_seq;
-    if (get_conn_status(ip_[ip_idx]) != 1)
-    {
-        ACE_DEBUG((LM_ERROR,"[%D] PlatConnMgrAsy estab failed"
-            ",ip=%s\n", ip_[ip_idx]));
+        ACE_DEBUG((LM_ERROR,"[%D] PlatConnMgrAsy check estab failed"
+            ",ip=%s,port=%d\n", ip_[ip_idx], port_));
         return -1;
     }
     
@@ -306,16 +295,9 @@ int PlatConnMgrAsy::is_estab(int ip_idx)
 
 int PlatConnMgrAsy::fini_conn(int ip_idx)
 {
-    /*
-    // ACE_Connector 会负责 清理 intf 的内存空间 此处只需要设置为 NULL 即可
-    // 增加一个处理 避免 ACE_Connector 可能没清理干净 
-    if (conn_info_[ip_idx].intf != NULL)
-    {
-        delete conn_info_[ip_idx].intf;
-        conn_info_[ip_idx].intf = NULL;
-    }
-    */
-    
+    ostringstream os;
+    os<<ip_[ip_idx]<<":"<<conn_info_[ip_idx].sock_fd;
+    set_conn_status(os.str(), 0);
     conn_info_[ip_idx].sock_fd = 0;
     conn_info_[ip_idx].sock_seq = 0;
     return 0;

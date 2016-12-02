@@ -34,6 +34,8 @@ typedef ACE_Message_Queue_Ex<PPMsg, ACE_MT_SYNCH> ISGWC_MSGQ;
 // 后端连接处理器 处理从后端异步返回的消息 
 class ISGWCIntf : public AceSockHdrBase
 {    
+    typedef AceSockHdrBase super;
+
 public:
     ISGWCIntf();
     virtual ~ISGWCIntf();

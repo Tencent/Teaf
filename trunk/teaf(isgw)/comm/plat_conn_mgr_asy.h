@@ -42,9 +42,7 @@ public:
     int init(const char *section = NULL); 
     // 判断 intf 是否正常 ,放入 ISGWAck 的队列即可 由接口层自己负责发送消息  
     int send(const void *buf, int len, const unsigned int uin=0);
-//#ifdef ISGW_USE_ASY
     int send(const void *buf, int len, ASYRMsg &rmsg, const unsigned int uin=0);
-//#endif 
     
 private:
     ///通过指定ip和port 初始化第index个连接，不指定则用内部的 

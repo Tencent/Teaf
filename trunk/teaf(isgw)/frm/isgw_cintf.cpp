@@ -426,14 +426,13 @@ int ISGWCIntf::process(char* msg, int sock_fd, int sock_seq, int msg_len)
 int ISGWCIntf::handle_close(ACE_HANDLE fd, ACE_Reactor_Mask mask)
 {
     //设置连接状态为不可用 
-    //ostringstream os;
-    //os<<this->get_handle()<<" "<<this->get_seq();    
     string ip = remote_addr_.get_host_addr();
-    ACE_DEBUG((LM_INFO, "[%D] ISGWCIntf handle_close,ip=%s\n", ip.c_str()));
-    set_conn_status(ip, 0);
+    ostringstream os;
+    os<< ip << ":" << this->get_handle();
+    ACE_DEBUG((LM_INFO, "[%D] ISGWCIntf handle_close,ip=%s\n", os.str().c_str()));
+    set_conn_status(os.str(), 0);
     
-    this->destroy();
-    return 0;
+    return super::handle_close(fd, mask);
 }
 
 int ISGWCIntf::is_legal(char* msg)

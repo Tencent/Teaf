@@ -958,6 +958,7 @@ int RdsSvr::get_sset_rank(string dbid
         else if(REDIS_REPLY_INTEGER==reply->type)
             elems[idx].rank = reply->integer;
         else
+        {
             ACE_DEBUG((LM_ERROR
                 , "[%D] RdsSvr::get_sset_rank failed,row error"
                 ",dbid=%s"
@@ -966,6 +967,8 @@ int RdsSvr::get_sset_rank(string dbid
                 , dbid.c_str()
                 , ssid.c_str()
                 , idx));
+            elems[idx].has_err = 1;
+        }
         freeReplyObject(reply);
     }
         

@@ -30,7 +30,7 @@
 #define _PLAT_CONN_MGR_EX_H_
 #include "easyace_all.h"
 
-#define IP_NUM_MAX 10  //后端服务器 ip 最大个数 
+#define IP_NUM_MAX 20  //后端服务器 ip 最大个数 
 #define IP_NUM_DEF 2  //后端服务器 ip 缺省个数 
 #define POOL_CONN_DEF 20 //缺省每个ip xx个连接
 #define POOL_CONN_MAX 100  //连接池单 ip 最大允许的连接数
