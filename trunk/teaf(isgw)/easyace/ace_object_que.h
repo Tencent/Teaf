@@ -57,6 +57,7 @@ template <typename ACE_MESSAGE_TYPE>
 ACE_Object_Que<ACE_MESSAGE_TYPE>::ACE_Object_Que ()
 {
     ACE_DEBUG((LM_INFO, "[%D] ACE_Object_Que construct succ.\n"));
+    ret_ = 0;
 }
 
 template <typename ACE_MESSAGE_TYPE>

@@ -1364,15 +1364,8 @@ int RdsSvr::get_hash_field(string dbid
         
     if(REDIS_REPLY_ARRAY==reply->type)
     {
-        if(0==reply->elements)
-        {
-            ACE_DEBUG((LM_ERROR
-                , "[%D] RdsSvr::get_hash_field no row,dbid=%s,hkey=%s\n"
-                , dbid.c_str(), hkey.c_str()));
-            freeReplyObject(reply);
-            return 1;
-        }
-        else if(reply->elements!=fields.size())
+        // HMGET For every field that does not exist in the hash, a nil value is returned. 
+        if(reply->elements!=fields.size())
         {
             ACE_DEBUG((LM_ERROR
                 , "[%D] RdsSvr::get_hash_field failed,ret array size error"
@@ -1383,15 +1376,29 @@ int RdsSvr::get_hash_field(string dbid
             freeReplyObject(reply);
             return -1;
         }
-        
+
+        // 提取有效元素个数
+        int32_t element_num = 0;
         for(int idx=0; idx<reply->elements; idx++)
         {
             if(reply->element[idx]->type!=REDIS_REPLY_NIL)
             {
+                ++element_num;
+                
                 string field = fields[idx];
                 string val = reply->element[idx]->str;
                 value.insert(make_pair(field, val));
             }
+        }
+
+        // 结果集为空
+        if(element_num == 0)
+        {
+            ACE_DEBUG((LM_ERROR
+                , "[%D] RdsSvr::get_hash_field no row,dbid=%s,hkey=%s\n"
+                , dbid.c_str(), hkey.c_str()));
+            freeReplyObject(reply);
+            return 1;
         }
     }
     else

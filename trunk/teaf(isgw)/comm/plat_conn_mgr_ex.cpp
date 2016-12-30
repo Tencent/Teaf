@@ -248,12 +248,14 @@ int PlatConnMgrEx::init_conn(int index, int ip_idx, const char *ip, int port)
         ",index=%d"
         ",ip_idx=%d"
         ",lock=0x%x"
+        ",fd=%d"
         "\n"
         , ip_[ip_idx]
         , port_
         , index
         , ip_idx
         , &(conn_lock_[ip_idx][index].lock())
+        , conn_[ip_idx][index]->get_handle()
         ));
     // 连接成功实际连续失败次数要清 0  使用状态要清 0 
     fail_times_[ip_idx] = 0;
@@ -385,13 +387,14 @@ int PlatConnMgrEx::send_recv(const void * send_buf, int send_len
     ACE_Time_Value zero;
     zero.set(0);
     int max_recv_len = recv_len;
-    int tmp_ret = conn_[ip_idx][index]->recv(recv_buf, max_recv_len, &zero);//不等待直接返返回
+    int ret = conn_[ip_idx][index]->recv(recv_buf, max_recv_len, &zero);//不等待直接返返回
     // 检测到连接关闭时, 重建连接
-    if((tmp_ret < 0 && errno != ETIME)   // 连接上无数据的情况,会返回超时,不需重连 
-        || tmp_ret == 0)                 // 连接已经被对端关闭, 处于close wait状态
+    if((ret < 0 && errno != ETIME)   // 连接上无数据的情况,会返回超时,不需重连 
+        || ret == 0)                 // 连接已经被对端关闭, 处于close wait状态
     {
         ACE_DEBUG((LM_INFO, "[%D] PlatConnMgrEx send_recv connection close detected,"
-            "uin=%u,ip=%s,index=%d\n", uin, ip_[ip_idx], index));
+            "uin=%u,ip=%s,index=%d,ret=%d\n", uin, ip_[ip_idx], index, ret));
+        fini(index, ip_idx);
         init_conn(index, ip_idx);
         if(conn_[ip_idx][index] == NULL)
         {
@@ -403,7 +406,7 @@ int PlatConnMgrEx::send_recv(const void * send_buf, int send_len
     
     ACE_DEBUG((LM_TRACE, "[%D] PlatConnMgrEx send_recv msg"
         ",index=%d,ip_idx=%d,uin=%u\n", index, ip_idx, uin));
-    int ret = conn_[ip_idx][index]->send(send_buf, send_len, &time_out_);
+    ret = conn_[ip_idx][index]->send(send_buf, send_len, &time_out_);
     if (ret <= 0) //异常或者对端关闭
     {
         ACE_DEBUG((LM_ERROR, "[%D] PlatConnMgrEx send_recv send msg failed"
@@ -470,14 +473,15 @@ int PlatConnMgrEx::send_recv_ex(const void * send_buf, int send_len
     ACE_Time_Value zero;
     zero.set(0);
     int max_recv_len = recv_len;
-    int tmp_ret = conn_[ip_idx][index]->recv(recv_buf, max_recv_len, &zero);//不等特直接返返回
+    int ret = conn_[ip_idx][index]->recv(recv_buf, max_recv_len, &zero);//不等特直接返返回
     // 检测到连接关闭时, 重建连接
     // 在对面进程重启时, 有可能发生
-    if((tmp_ret < 0 && errno != ETIME)   // 连接上无数据的情况,会返回超时,不需重连 
-        || tmp_ret == 0)                 // 连接已经被对端关闭, 处于close wait状态
+    if((ret < 0 && errno != ETIME)   // 连接上无数据的情况,会返回超时,不需重连 
+        || ret == 0)                 // 连接已经被对端关闭, 处于close wait状态
     {
         ACE_DEBUG((LM_INFO, "[%D] PlatConnMgrEx send_recv_ex connection close detected,"
-            "uin=%u,ip=%s,index=%d\n", uin, ip_[ip_idx], index));
+            "uin=%u,ip=%s,index=%d,ret=%d\n", uin, ip_[ip_idx], index, ret));
+        fini(index, ip_idx);
         init_conn(index, ip_idx);
     	if(conn_[ip_idx][index] == NULL)
     	{
@@ -489,7 +493,7 @@ int PlatConnMgrEx::send_recv_ex(const void * send_buf, int send_len
 
     ACE_DEBUG((LM_TRACE, "[%D] PlatConnMgrEx send_recv_ex msg"
         ",index=%d,ip_idx=%d,uin=%u\n", index, ip_idx, uin));
-    int ret = conn_[ip_idx][index]->send_n(send_buf, send_len, &time_out_);
+    ret = conn_[ip_idx][index]->send_n(send_buf, send_len, &time_out_);
     if (ret <= 0) //异常或者对端关闭
     {
         ACE_DEBUG((LM_ERROR, "[%D] PlatConnMgrEx send_recv_ex send msg failed"
@@ -617,8 +621,8 @@ ACE_SOCK_Stream* PlatConnMgrEx::get_conn(int index, int & ip_idx) //从连接池获取
             ",section=%s"
             ",index=%d"
             ",ip_idx=%d"
-            ",fail_times=%d"
-            ",last_fail_time=%d"
+            ",ftimes=%d"
+            ",lftime=%d"
 			"\n"
             , section_
             , index
@@ -627,7 +631,7 @@ ACE_SOCK_Stream* PlatConnMgrEx::get_conn(int index, int & ip_idx) //从连接池获取
             , last_fail_time_[ip_idx]
             ));
         // 尝试下一个 ip 
-        ip_idx = (++ip_idx)%ip_num_;
+        ip_idx = ((++ip_idx)%ip_num_);
         
         // 尝试下一个的时候不做任何重连操作 直接使用 避免下一个也异常 出现频繁重连的情况
         return conn_[ip_idx][index]; // NULL; //
@@ -656,30 +660,35 @@ int PlatConnMgrEx::fini(int index, int ip_idx)
     
     // 连接策略 
     fail_times_[ip_idx]++;
-	last_fail_time_[ip_idx] = time(0);
+    last_fail_time_[ip_idx] = time(0);
     
     if (conn_[ip_idx][index] != NULL)
     {
-        conn_[ip_idx][index]->close();
-        delete conn_[ip_idx][index];
-        conn_[ip_idx][index] = NULL;
-    }
-    conn_use_flag_[ip_idx][index] = 0;
-    
-    ACE_DEBUG((LM_INFO, "[%D] PlatConnMgrEx fini conn succ"
+        int fd = conn_[ip_idx][index]->get_handle();
+        int ret = conn_[ip_idx][index]->close();
+        ACE_DEBUG((LM_INFO, "[%D] PlatConnMgrEx fini conn succ"
 		",ip=%s"
 		",port=%d"
 		",index=%d"
 		",ip_idx=%d"
-		",fail_times=%d"
+		",ftimes=%d"
+		",fd=%d"
+		",ret=%d"
 		"\n"
 		, ip_[ip_idx]
 		, port_
 		, index
 		, ip_idx
 		, fail_times_[ip_idx]
+		, fd
+		, ret
 		));
-
+        
+        delete conn_[ip_idx][index];
+        conn_[ip_idx][index] = NULL;
+    }
+    conn_use_flag_[ip_idx][index] = 0;
+    
     return 0;
 }
 
@@ -687,7 +696,7 @@ int PlatConnMgrEx::fini(int index, int ip_idx)
 // 但是连接使用的时候会通过加锁控制，一个连接同时只能一个线程使用
 unsigned int PlatConnMgrEx::get_index(int ip_idx, unsigned uin)
 {
-    ip_idx = ip_idx % ip_num_;
+    ip_idx = (ip_idx % ip_num_);
 
 #ifdef THREAD_BIND_CONN
     // 如果采用 getpid() suse下编译获取到的pid为同一个 

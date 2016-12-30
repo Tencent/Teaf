@@ -6,7 +6,7 @@
 
 int ISGWIntf::msg_seq_ = 0;
 
-ISGWIntf::ISGWIntf() : recv_len_(0), msg_len_(0)
+ISGWIntf::ISGWIntf() : recv_len_(0), msg_len_(0), lastrtime_(0)
 {
     //memset(recv_buf_, 0x0, sizeof(recv_buf_));
 }

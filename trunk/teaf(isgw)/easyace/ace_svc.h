@@ -153,7 +153,7 @@ int ACESvc<IN_MSG_TYPE, OUT_MSG_TYPE>::putq(IN_MSG_TYPE* msg)
         {
             if (ret > 500)
             {
-                index_=(++index_)%SVC_QUE_NUM; //尝试下一个队列 
+                index_=((++index_)%SVC_QUE_NUM); //尝试下一个队列 
             }
             break;
         }

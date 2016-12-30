@@ -45,9 +45,10 @@ int PdbOper::process(QModeMsg& req, char* ack, int& ack_len)
 #ifdef ADMIN_OPER
                 case CMD_TEST_ADMIN_STT:
                 {
-                    AdminProxySync oper;
-                    AdminTipsParam param;
-                    ret = oper.start_tips_task(param); //
+                    //AdminProxySync oper;
+                    //AdminTipsParam param;
+                    
+                    //ret = oper.start_tips_task(param); //
                 }
                 break;
 #endif
