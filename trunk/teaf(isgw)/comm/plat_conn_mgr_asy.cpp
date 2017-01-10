@@ -34,17 +34,17 @@ PlatConnMgrAsy::PlatConnMgrAsy()
     memset(ip_, 0x0, sizeof(ip_));    
     ip_num_ = IP_NUM_DEF; // 默认每组2个服务器 ip 
     port_ = 0;    
-    time_out_.set(SOCKET_TIME_OUT);
+    time_out_.set(SOCKET_TIME_OUT/1000, (SOCKET_TIME_OUT%1000)*1000);
     memset(&conn_info_, 0x0, sizeof(conn_info_));    
 }
 
 PlatConnMgrAsy::PlatConnMgrAsy(const char*host_ip, int port)
 {
     port_ = port;
-    time_out_.set(SOCKET_TIME_OUT);
+    time_out_.set(SOCKET_TIME_OUT/1000, (SOCKET_TIME_OUT%1000)*1000);
     memset(&conn_info_, 0x0, sizeof(conn_info_));
-    ip_num_ = IP_NUM_MAX;
     
+    ip_num_ = IP_NUM_MAX;    
     for(int i = 0; i < ip_num_; ++i)
     {
         snprintf(ip_[i], sizeof(ip_[i]), "%s", host_ip);
@@ -77,7 +77,7 @@ int PlatConnMgrAsy::init(const char *section)
     int time_out = SOCKET_TIME_OUT;
     if (SysConf::instance()->get_conf_int(section_, "time_out", &time_out) == 0)
     {
-        time_out_.set(time_out);
+        time_out_.set(time_out/1000, (time_out%1000)*1000);
     }
     
     //获取 ip 列表 
@@ -179,13 +179,14 @@ int PlatConnMgrAsy::init_conn(int ip_idx, const char *ip, int port)
     ACE_INET_Addr svr_addr(port_, ip_[ip_idx]);
     ISGW_CONNECTOR connector;
     conn_info_[ip_idx].intf = new ISGWCIntf();
-    if (connector.connect(conn_info_[ip_idx].intf, svr_addr) != 0) //, my_option
+    ACE_Synch_Options opt(2, time_out_);
+    if (connector.connect(conn_info_[ip_idx].intf, svr_addr, opt) != 0) //, my_option
     {
         ACE_DEBUG((LM_ERROR, "[%D] PlatConnMgrAsy init conn failed"
             ",ip=%s,port=%d,ip_idx=%d\n"
             , ip_[ip_idx], port_, ip_idx
             ));
-        fini_conn(ip_idx);
+        //fini_conn(ip_idx);
         Stat::instance()->incre_stat(STAT_CODE_CONN_FAIL);
         return -1;
     }

@@ -429,7 +429,7 @@ int ISGWCIntf::handle_close(ACE_HANDLE fd, ACE_Reactor_Mask mask)
     string ip = remote_addr_.get_host_addr();
     ostringstream os;
     os<< ip << ":" << this->get_handle();
-    ACE_DEBUG((LM_INFO, "[%D] ISGWCIntf handle_close,ip=%s\n", os.str().c_str()));
+    ACE_DEBUG((LM_DEBUG, "[%D] ISGWCIntf handle_close,ip=%s\n", os.str().c_str()));
     set_conn_status(os.str(), 0);
     
     return super::handle_close(fd, mask);

@@ -36,7 +36,7 @@ int ISGWIntf::open(void* p)
     ACE_Time_Value delay(MAX_IDLE_TIME_SEC,0);
     ACE_Time_Value interval(MAX_IDLE_TIME_SEC,0); //10 ·ÖÖÓ 
     ACE_Reactor::instance()->schedule_timer(this, 0, delay, interval);
-    ACE_DEBUG((LM_NOTICE, "[%D] ISGWIntf start clean timer,interval=%d\n", MAX_IDLE_TIME_SEC));
+    ACE_DEBUG((LM_NOTICE, "[%D] ISGWIntf open clean timer,interval=%d\n", MAX_IDLE_TIME_SEC));
 #endif
     
     return 0;

@@ -75,7 +75,7 @@ int ISGWMgrSvc::init()
     SysConf::instance()->get_conf_int("router", "route_flag", &rflag_);
     int idx=0;
     char tmp_str[32];
-    while(1)
+    while(1&rflag_)
     {
         char ip[16] = {0};
         int port = 0;

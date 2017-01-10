@@ -23,7 +23,7 @@
 #define IP_NUM_MAX 20  //后端服务器 ip 最大个数 
 #define IP_NUM_DEF 2  //后端服务器 ip 缺省个数 
 #define MAX_SECTION_NAME_LEN 32 
-#define SOCKET_TIME_OUT 1 
+#define SOCKET_TIME_OUT 100  //单位 ms 
 
 struct stConnInfo
 {
