@@ -23,7 +23,7 @@
 #include "ace_conf.h"
 
 #ifndef MAX_FD_SETSIZE 
-#define MAX_FD_SETSIZE 10240
+#define MAX_FD_SETSIZE 20480
 #endif
 
 class ACEApp
