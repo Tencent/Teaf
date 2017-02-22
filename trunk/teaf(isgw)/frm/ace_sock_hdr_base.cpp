@@ -96,7 +96,7 @@ int AceSockHdrBase::send(ACE_Message_Block* ack_msg /* = NULL */)
     while (ack_msg)
     {
         ACE_DEBUG((LM_NOTICE, "[%D] AceSockHdrBase start to send ack_msg=0x%08x\n", ack_msg));
-        //发送消息时确保使用非阻塞模式 timeout 用 NULL by xwfang 2010-01-22
+        //发送消息时确保设置非阻塞模式 timeout 才能用 NULL by xwfang 2010-01-22
         int ret = this->peer().send(ack_msg->rd_ptr(), ack_msg->length(), time_null_); 
         switch (ret)
         {

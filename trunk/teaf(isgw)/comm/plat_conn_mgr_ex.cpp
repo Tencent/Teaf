@@ -29,7 +29,7 @@ PlatConnMgrEx::PlatConnMgrEx()
 	
 }
 
-PlatConnMgrEx::PlatConnMgrEx(const char*host_ip, int port, int conn_num)
+PlatConnMgrEx::PlatConnMgrEx(const char*host_ip, int port, int conn_num, int time_out)
 {
     for(int i=0; i<IP_NUM_MAX; i++)
     {
@@ -47,7 +47,11 @@ PlatConnMgrEx::PlatConnMgrEx(const char*host_ip, int port, int conn_num)
     snprintf(ip_[0], sizeof(ip_[0]), "%s", host_ip);
     port_ = port;
     conn_nums_ = conn_num;
-    time_out_.set(SOCKET_TIME_OUT/1000, (SOCKET_TIME_OUT%1000)*1000);
+    if (time_out == 0)
+    {
+        time_out = SOCKET_TIME_OUT;
+    }
+    time_out_.set(time_out/1000, (time_out%1000)*1000);
 
     use_strategy_ = DEF_USE_STRATEGY; //默认使用
     max_fail_times_ = DEF_MAX_FAIL_TIMES; //默认连续五次失败则等待一段时间重连
@@ -211,11 +215,13 @@ int PlatConnMgrEx::init_conn(int index, int ip_idx, const char *ip, int port)
         ",port=%d"
         ",index=%d"
         ",ip_idx=%d"
+        ",conn_nums=%d"
         "\n"
         , ip_[ip_idx]
         , port_
         , index
         , ip_idx
+        , conn_nums_
         ));
 
     // 没有配置的 ip 和端口 
@@ -249,6 +255,7 @@ int PlatConnMgrEx::init_conn(int index, int ip_idx, const char *ip, int port)
         ",ip_idx=%d"
         ",lock=0x%x"
         ",fd=%d"
+        ",conn_nums=%d"
         "\n"
         , ip_[ip_idx]
         , port_
@@ -256,6 +263,7 @@ int PlatConnMgrEx::init_conn(int index, int ip_idx, const char *ip, int port)
         , ip_idx
         , &(conn_lock_[ip_idx][index].lock())
         , conn_[ip_idx][index]->get_handle()
+        , conn_nums_
         ));
     // 连接成功实际连续失败次数要清 0  使用状态要清 0 
     fail_times_[ip_idx] = 0;
@@ -417,6 +425,8 @@ int PlatConnMgrEx::send_recv(const void * send_buf, int send_len
         Stat::instance()->incre_stat(STAT_CODE_SEND_FAIL);
         return ret;
     }
+    ACE_DEBUG((LM_TRACE, "[%D] PlatConnMgrEx send_recv send msg succ"
+        ",index=%d,ip_idx=%d,uin=%u,ret=%d\n", index, ip_idx, uin, ret));
 	// 
     ret = conn_[ip_idx][index]->recv(recv_buf, recv_len, &time_out_);
     if (ret <= 0) //异常或者对端关闭
@@ -504,8 +514,8 @@ int PlatConnMgrEx::send_recv_ex(const void * send_buf, int send_len
         Stat::instance()->incre_stat(STAT_CODE_SEND_FAIL);
         return ret;
     }
-    ACE_DEBUG((LM_TRACE, "[%D] PlatConnMgrEx send_recv_ex send msg succ"
-        ",index=%d,ip_idx=%d,ret=%d,uin=%u\n", index, ip_idx, ret, uin));
+    ACE_DEBUG((LM_TRACE, "[%D] PlatConnMgrEx send_recv_ex send_n msg succ"
+        ",index=%d,ip_idx=%d,uin=%u,ret=%d\n", index, ip_idx, uin, ret));
 	// 
     ret = conn_[ip_idx][index]->recv(recv_buf, recv_len, &time_out_);
     if (ret <= 0) //异常或者对端关闭
@@ -697,34 +707,35 @@ int PlatConnMgrEx::fini(int index, int ip_idx)
 unsigned int PlatConnMgrEx::get_index(int ip_idx, unsigned uin)
 {
     ip_idx = (ip_idx % ip_num_);
-
 #ifdef THREAD_BIND_CONN
     // 如果采用 getpid() suse下编译获取到的pid为同一个 
     // ACE_OS::thr_self()
     return syscall(SYS_gettid)%conn_nums_;//此算法依赖于线程号的顺序产生才能均匀分配请求         
 #else
-    // 先随机看看是否有空的    
-    int index = 0;
-    if(0==uin) index = rand()%conn_nums_;
-    else index= (uin/100)%conn_nums_;
+    // 如果指定了uin 则按照uin 固定 路由
+    if (uin != 0)
+    {
+        return uin%conn_nums_;
+    }
     
-    if(0 == conn_use_flag_[ip_idx][index])
+    //随机看看是否有空的    
+    int index = rand()%conn_nums_;
+    if (0 == conn_use_flag_[ip_idx][index])
     {
         return index;
     }
-    
     //否则找到一个没有使用的连接就返回:
     int i = 0;
-    for(i=0; i<conn_nums_; i++)
+    for (i=0; i<conn_nums_; i++)
     {
-        if(0 == conn_use_flag_[ip_idx][i])
+        if (0 == conn_use_flag_[ip_idx][i])
         {
             index = i;
             break;
         }
     }
     //如果没找到，则仍然返回刚才随机的，因为连接使用时本身会加锁，不会有太大影响
-    if(i == conn_nums_)
+    if (i == conn_nums_)
     {
         ACE_DEBUG((LM_ERROR, "[%D] PlatConnMgrEx get_index conn failed,runout"
     		",ip=%s"

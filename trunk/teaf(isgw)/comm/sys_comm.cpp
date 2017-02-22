@@ -1561,7 +1561,7 @@ EASY_UTIL::IPAddrMap EASY_UTIL::get_local_ip_map()
 
         int sock_fd = socket(AF_INET, SOCK_DGRAM, 0);
         int ret = ioctl(sock_fd, SIOCGIFCONF, (void *)&ifc);
-        close(sock_fd);
+		if (sock_fd >= 0) close(sock_fd);
         
         if(ret == 0)
         {
@@ -1573,9 +1573,9 @@ EASY_UTIL::IPAddrMap EASY_UTIL::get_local_ip_map()
             for (ifr=ifc.ifc_req, j=0; j<ifc.ifc_len/sizeof(struct ifreq); j++, ifr++) 
             {
                 paddr = (struct sockaddr_in*)&(ifr->ifr_addr);
-                if(inet_ntop(AF_INET,(void *)&paddr->sin_addr, ip, sizeof(ip)-1)<0)
+                if(inet_ntop(AF_INET,(void *)&paddr->sin_addr, ip, sizeof(ip)-1)==NULL)
                 {
-                    break;
+                    continue;
                 }
                 ipaddr_map.insert(make_pair(string(ifr->ifr_name), string(ip)));
             }

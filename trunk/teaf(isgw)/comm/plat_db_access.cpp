@@ -468,7 +468,7 @@ unsigned int PlatDbAccess::get_conn_index(unsigned int uin)
 
     // Ëæ»úÂ·ÓÉ 
     int index = rand()%conn_nums_;
-    if(0 == db_conn_flag_[index])
+    if (0 == db_conn_flag_[index])
     {
         return index;
     }

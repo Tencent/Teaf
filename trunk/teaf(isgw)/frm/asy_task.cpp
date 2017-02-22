@@ -53,15 +53,17 @@ int ASYTask::insert(ASYRMsg &rmsg)
     // 判断记录数是不是过多，如果太多需要清理一些老的记录
     if (asyr_map_.size()>MAX_ASYR_RECORED)
     {
-        ASYR_MAP::iterator it;
+        ASYR_MAP::iterator it,it_tmp;
         int now = ISGWAck::instance()->get_time();
         for(it=asyr_map_.begin(); it!=asyr_map_.end(); it++)
         {
             if(now - it->second.time > DISCARD_TIME)
             {
-                asyr_map_.erase(it); //it 是否有效? 
+                it_tmp = it;
+				it --; //it 是否有效? 
+                asyr_map_.erase(it_tmp);
             }
-        }        
+        }
     }
     
     ACE_DEBUG((LM_NOTICE, "[%D] ASYTask insert succ,map size=%d\n", asyr_map_.size()));

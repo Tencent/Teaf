@@ -50,7 +50,7 @@ class PlatConnMgrEx
 {
 public:
     PlatConnMgrEx();
-    PlatConnMgrEx(const char*host_ip, int port, int conn_num);
+    PlatConnMgrEx(const char*host_ip, int port, int conn_num, int time_out = 0);
     ~PlatConnMgrEx();
     ///通过配置初始化所有连接
     int init(const char *section = NULL, const std::vector<std::string> *ip_vec = NULL); 
