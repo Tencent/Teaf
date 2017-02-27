@@ -181,6 +181,13 @@ int ISGWCIntf::handle_input(ACE_HANDLE /*fd = ACE_INVALID_HANDLE*/)
 
 int ISGWCIntf::handle_input(ACE_HANDLE /*fd = ACE_INVALID_HANDLE*/)
 {
+	//长度字段在消息中额外占字节
+	unsigned int len_extra_size = MSG_LEN_SIZE_C;		   
+#ifdef NO_EXTRA_SIZE_C
+	//长度字段本身包含在消息长度中
+	len_extra_size = 0;							   
+#endif
+    
     //接收消息
     int ret = this->peer().recv((char*)recv_buf_ + recv_len_,
                                 MAX_RECV_BUF_LEN_C - recv_len_); //, &timeout
@@ -246,7 +253,7 @@ int ISGWCIntf::handle_input(ACE_HANDLE /*fd = ACE_INVALID_HANDLE*/)
             }
         }
     
-        if (recv_len_ - MSG_LEN_SIZE_C < msg_len_)
+        if (recv_len_ < (len_extra_size+msg_len_))
         {
             // not complete
             ACE_DEBUG((LM_TRACE, "[%D] ISGWCIntf recv succ but uncompleted msg 2"
@@ -267,14 +274,14 @@ int ISGWCIntf::handle_input(ACE_HANDLE /*fd = ACE_INVALID_HANDLE*/)
     int i = 0;
 
     //循环处理每一个完整的消息
-    while( pend_len >=  (MSG_LEN_SIZE_C + msg_len) )
+    while( pend_len >=  (len_extra_size + msg_len) )
     {			
         ACE_DEBUG((LM_TRACE, "[%D] ISGWCIntf in while,i=%d,pend_len=%d"
             ",proced_len=%d,msg_len=%d\n"
-            , i++, pend_len, proced_len, msg_len));
+            , i, pend_len, proced_len, msg_len));
         
         //消息指针下移
-        msg_buf = &recv_buf_[proced_len + MSG_LEN_SIZE_C];
+        msg_buf = &recv_buf_[proced_len + len_extra_size];
         
         //解析当前消息长度指定的消息块，并进行处理
         if (process(msg_buf, get_handle(), get_seq(), msg_len) != 0)
@@ -284,14 +291,14 @@ int ISGWCIntf::handle_input(ACE_HANDLE /*fd = ACE_INVALID_HANDLE*/)
         }
         
         //已经处理的长度 增加
-        proced_len += MSG_LEN_SIZE_C+msg_len;
+        proced_len += len_extra_size+msg_len;
         //待处理的长度减少
-        pend_len -= MSG_LEN_SIZE_C+msg_len;    	
-        
+        pend_len -= len_extra_size+msg_len;
+
+		msg_len = 0;
         if (pend_len < MSG_LEN_SIZE_C)
         {
-        	//如果剩余的长度不够四个字节直接退出
-        	msg_len = 0;
+        	//如果剩余的长度不够四个字节直接退出        	
         	break;
         }
         
@@ -303,6 +310,18 @@ int ISGWCIntf::handle_input(ACE_HANDLE /*fd = ACE_INVALID_HANDLE*/)
             ",pend_len=%d,proced_len=%d,msg_len=%d\n"
             , i, MSG_LEN_SIZE_C, pend_len, proced_len, msg_len
             ));
+		
+		// 如果msg_len 异常 则断开
+        if (msg_len > MAX_RECV_BUF_LEN_C || msg_len <= MSG_LEN_SIZE_C)
+        {
+            ACE_DEBUG((LM_ERROR, "[%D] ISGWCIntf recv failed,illegal msg"
+                ",msg_len=%d,ip=%s\n"
+                , msg_len, remote_addr_.get_host_addr()
+                ));
+            return -1;
+        }
+
+		i++;
         
     }    
     ACE_DEBUG((LM_NOTICE, "[%D] ISGWCIntf out while,pend_len=%d,proced_len=%d,msg_len=%d\n"
@@ -352,7 +371,6 @@ int ISGWCIntf::process(char* msg, int sock_fd, int sock_seq, int msg_len)
     }
     memset(ack, 0x0, sizeof(PPMsg));
     ack->index = index;
-    //snprintf(ack->msg, sizeof(ack->msg)-1, "%s", p);
 	memcpy(ack->msg, msg, msg_len);
 	ack->msg_len = msg_len;
     // 获取到原始请求的前端连接信息 
@@ -367,7 +385,7 @@ int ISGWCIntf::process(char* msg, int sock_fd, int sock_seq, int msg_len)
     ACE_DEBUG((LM_NOTICE, "[%D] ISGWCIntf process msg"
         ",rflag=%d,sock_fd=%u,protocol=%u"
         ",ip=%u,port=%u,sock_seq=%u,seq_no=%u,time=%u"
-        ",msg=%s\n"
+        ",msg_len=%d,msg=%s\n"
         , ack->rflag
         , ack->sock_fd
         , ack->protocol
@@ -376,6 +394,7 @@ int ISGWCIntf::process(char* msg, int sock_fd, int sock_seq, int msg_len)
         , ack->sock_seq
         , ack->seq_no
         , ack->time
+        , ack->msg_len
         , ack->msg
         ));
     
@@ -397,7 +416,7 @@ int ISGWCIntf::process(char* msg, int sock_fd, int sock_seq, int msg_len)
             ACE_DEBUG((LM_ERROR, "[%D] ISGWCIntf process enqueue msg failed"
                 ",rflag=%d,sock_fd=%u,protocol=%u"
                 ",ip=%u,port=%u,sock_seq=%u,seq_no=%u,time=%u"
-                ",msg=%s\n"
+                ",msg_len=%d,msg=%s\n"
                 , ack->rflag
                 , ack->sock_fd
                 , ack->protocol
@@ -406,6 +425,7 @@ int ISGWCIntf::process(char* msg, int sock_fd, int sock_seq, int msg_len)
                 , ack->sock_seq
                 , ack->seq_no
                 , ack->time
+                , ack->msg_len
                 , ack->msg
                 ));
             // 入队失败回收消息，避免内存泄漏

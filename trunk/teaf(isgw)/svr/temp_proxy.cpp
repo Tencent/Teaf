@@ -9,22 +9,24 @@ ACE_Thread_Mutex TempProxy::conmgr_lock_;
 
 /*
 // 需要定义的解析函数 ，如果不是用框架默认的协议格式就需要实现此函数 
-#ifndef _ISGW_CINTF_PARSE_
+// 注意此函数为主线程的执行函数，请不要有阻塞线程的操作或者耗时的操作
 #define _ISGW_CINTF_PARSE_
 int isgw_cintf_parse(PPMsg * ack)
 {
+    //解析 ack->msg (后端返回的消息体) 并把下面的关键信息进行赋值 
+    
     QModeMsg qmode_ack(ack->msg);
-    //如果需要直接返回给客户端可以把此字段设置为1
-    ack->rflag = atoi((*(qmode_ack.get_map()))["_rflag"].c_str());
+    
+    ack->rflag = atoi((*(qmode_ack.get_map()))["_rflag"].c_str()); //如果需要直接返回给客户端可以把此字段设置为1
     ack->sock_fd = strtoul((*(qmode_ack.get_map()))["_sockfd"].c_str(), NULL, 10);
     ack->protocol = strtoul((*(qmode_ack.get_map()))["_prot"].c_str(), NULL, 10);
     ack->sock_seq = strtoul((*(qmode_ack.get_map()))["_sock_seq"].c_str(), NULL, 10);
     ack->seq_no = strtoul((*(qmode_ack.get_map()))["_msg_seq"].c_str(), NULL, 10);
     ack->cmd = qmode_ack.get_cmd();
     ack->time = strtoul((*(qmode_ack.get_map()))["_time"].c_str(), NULL, 10);
+    
     return 0;
 }
-#endif
 */
 
 int TempProxy::init_conmgr()

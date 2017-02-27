@@ -245,6 +245,10 @@ int PlatConnMgrAsy::send(const void * buf, int len, const unsigned int uin)
     gettimeofday(&(req->tv_time), NULL);
     req->time = ISGWAck::instance()->get_time();
 	req->msg_len = len;
+    if (req->msg_len == 0)
+    {
+        req->msg_len = strlen(req->msg);
+    }
 	memcpy(req->msg, buf, req->msg_len);
     ACE_DEBUG((LM_NOTICE, "[%D] PlatConnMgrAsy send msg to ISGWAck"
         ",sock_fd=%u,protocol=%u,ip=%u,port=%u,sock_seq=%u,seq_no=%u,time=%u"

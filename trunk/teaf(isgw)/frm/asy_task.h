@@ -59,7 +59,7 @@ protected:
     static ASY_PROC asy_proc_; //缺省的回调函数
     
 protected:
-    static const int DEFAULT_THREADS = 2;
+    static const int DEFAULT_THREADS = 5;
 };
 
 #endif //_ASY_TASK_H_
