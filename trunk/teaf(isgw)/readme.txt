@@ -548,5 +548,5 @@ v1.6d101 2009-08-25
 
 ´ò°üÃüÁî :
 
-tar -czvf isgw_v3.3d400.tgz isgw
+tar -czvf isgw_v3.3d502.tar.gz isgw
 

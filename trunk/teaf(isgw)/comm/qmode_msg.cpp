@@ -2,7 +2,6 @@
 #include <cstdio>
 #include <cstdlib>
 
-#ifdef BINARY_PROTOCOL
 QModeMsg::QModeMsg(const int len, const char* body, unsigned int sock_fd, unsigned int sock_seq
     , unsigned int msg_seq, unsigned int prot, unsigned int time, unsigned int sock_ip
     , unsigned short port)
@@ -15,8 +14,6 @@ QModeMsg::QModeMsg(const int len, const char* body, unsigned int sock_fd, unsign
     memcpy(body_, body, len);
     body_len_ = len;
 }
-
-#endif
 
 QModeMsg::QModeMsg(const char* body, unsigned int sock_fd, unsigned int sock_seq
     , unsigned int msg_seq, unsigned int prot, unsigned int time, unsigned int sock_ip

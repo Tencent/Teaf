@@ -243,8 +243,8 @@ PPMsg* ISGWMgrSvc::process(PPMsg*& ppmsg)
     gettimeofday(&ppmsg->p_start, NULL);
 
     //二进制需要传入长度
-    //二进制协议不知道命令字，默认为0，无法在入口统计命令数
-#ifdef BINARY_PROTOCOL
+    //二进制协议不知道命令字，默认为0，无法在入口统计
+#ifdef MSG_LEN_SIZE
     QModeMsg qmode_req(ppmsg->msg_len, ppmsg->msg, ppmsg->sock_fd, ppmsg->sock_seq
         , ppmsg->seq_no, ppmsg->protocol, (unsigned int)ppmsg->tv_time.tv_sec, ppmsg->sock_ip, ppmsg->sock_port);
 #else

@@ -11,7 +11,7 @@
   Copyright (C), 2008-2018
   FileName: temp_proxy.h
   Author: xwfang              Date: 2010-08-20
-  Description: 远程代理类模板  
+  Description: 异步连接管理器使用的模板样例代码
   Function List:   
   History:     
       <author>     <time>     <version >   <desc>

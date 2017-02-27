@@ -178,10 +178,10 @@ int ISGWIntf::handle_input(ACE_HANDLE fd) //= ACE_INVALID_HANDLE
 int ISGWIntf::handle_input(ACE_HANDLE /*fd = ACE_INVALID_HANDLE*/)
 {
     lastrtime_ = ISGWAck::instance()->get_time();
-    // 文本协议,长度字段在消息中额外占MSG_LEN_SIZE字节
+    //长度字段在消息中额外占MSG_LEN_SIZE字节
     unsigned int len_field_extra_size = MSG_LEN_SIZE;          
-#ifdef BINARY_PROTOCOL
-    // 二进制协议,长度字段本身包含在消息中
+#ifdef NO_EXTRA_SIZE
+    //长度字段本身包含在消息中
     len_field_extra_size = 0;                                  
 #endif 
 

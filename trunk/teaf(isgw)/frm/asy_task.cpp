@@ -128,8 +128,8 @@ int ASYTask::svc(void)
             //if (flag == 1)
             //{
             int ack_len = MAX_INNER_MSG_LEN; //作为传入传出参数，默认为buf的大小
-            char ack_buf[MAX_INNER_MSG_LEN+1] = {0}; // 存放以地址&分割的结果信息
-            QModeMsg qmode_ack(ack->msg, ack->sock_fd, ack->sock_seq
+            char ack_buf[MAX_INNER_MSG_LEN+1] = {0}; // 存放以地址&分割的结果信息(回给前端的)
+            QModeMsg qmode_ack(ack->msg_len, ack->msg, ack->sock_fd, ack->sock_seq
                     , ack->seq_no, ack->protocol, ack->time, ack->sock_ip, ack->sock_port);
             qmode_ack.set_tvtime(&(ack->tv_time));
             if (prvalue.asy_proc!=NULL)

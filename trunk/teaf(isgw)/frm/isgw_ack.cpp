@@ -250,8 +250,8 @@ uint32_t ISGWAck::stat(PPMsg* ack_msg)
     gettimeofday(&t_end, NULL);
     ack_msg->total_span = EASY_UTIL::get_span(&ack_msg->tv_time, &t_end);
     
-#ifdef BINARY_PROTOCOL
-    // 二进制协议需要统计请求量
+#ifdef MSG_LEN_SIZE
+    // 二进制协议需要统计请求量，耗时等
     ReprtInfo info(ack_msg->cmd, 1, 0, ack_msg->total_span, ack_msg->procs_span);
     if(ack_msg->ret<0) info.failed_count = 1;
     Stat::instance()->add_stat(&info);

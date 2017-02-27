@@ -8,7 +8,7 @@ PlatConnMgrAsy* TempProxy::conmgr_ = NULL;
 ACE_Thread_Mutex TempProxy::conmgr_lock_;
 
 /*
-// 需要定义的解析函数 
+// 需要定义的解析函数 ，如果不是用框架默认的协议格式就需要实现此函数 
 #ifndef _ISGW_CINTF_PARSE_
 #define _ISGW_CINTF_PARSE_
 int isgw_cintf_parse(PPMsg * ack)
@@ -128,6 +128,7 @@ int TempProxy::test(QModeMsg &req)
     rmsg.key.msg_seq = req.get_msg_seq();
     //在init的时候设置, 不需要每次调用都设置，除非回调函数有变化 
     //rmsg.value.asy_proc = &TempProxy::cb_test;
+    //content 可以保存此消息相关的上下文，业务字段等
     rmsg.value.content="test content string info";
     
     ACE_DEBUG((LM_DEBUG, "[%D] TempProxy test,uin=%u,req_buf=%s\n", uin, req_buf));
@@ -157,8 +158,15 @@ int TempProxy::test(QModeMsg &req)
 
 int TempProxy::cb_test(QModeMsg& ack, string& content, char* ack_buf, int& ack_len)
 {
-    snprintf(ack_buf, ack_len-1, "%s&info=cb_test async conn,%s\n", ack.get_body(), content.c_str());
-    
+    //如果需要给前端回消息需要在此进行处理
+    //把回的消息包设置到ack_buf 并指定 ack_len 就好
+    ack_len = snprintf(ack_buf, ack_len-1, "%s&info=cb_test async conn,%s\n", ack.get_body(), content.c_str());
+
+    //当然也可以自己构建回包结构体
+    //PPMsg ack
+    //并放入回送消息管理器 负责把消息送到连接对端 
+    //ISGWAck::instance()->putq(ack);
+	
     ACE_DEBUG((LM_INFO, "[%D] TempProxy cb_test, ack_buf=%s\n", ack_buf));
     return 0;
 }

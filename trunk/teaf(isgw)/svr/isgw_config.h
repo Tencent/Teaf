@@ -22,9 +22,12 @@
 #define MAX_INNER_MSG_LEN 4096
 //#define MSG_SEPARATOR "\r\n"
 
-// 指定消息头长度
+// 控制是否使用二进制模式
 //#define MSG_LEN_SIZE 4  // ISGWIntf 使用 ，目前只支持 2 和4 两个值
+
+// 控制是否使用二进制模式
 //#define MSG_LEN_SIZE_C 4  // ISGWCIntf 使用 ，此值目前应该只支持 4 一个取值 
+
 //#define FIELD_NAME_CMD "cmd"
 
 //超时告警的时间

@@ -42,14 +42,12 @@ typedef map<string, string> QMSG_MAP;
 class QModeMsg
 {
 public:
-    #ifdef BINARY_PROTOCOL
     //带长度的qmode，用于二进制
     QModeMsg(const int len, const char* body, unsigned int sock_fd = 0, unsigned int sock_seq = 0
         , unsigned int msg_seq = 0, unsigned int prot = 0, unsigned int time = 0
         , unsigned int sock_ip = 0, unsigned short sock_port = 0);
     void set_cmd(unsigned cmd) { cmd_ = cmd; }
-    #endif
-
+    
     //不带长度的qmode，用于文本
     QModeMsg(const char* body, unsigned int sock_fd = 0, unsigned int sock_seq = 0
         , unsigned int msg_seq = 0, unsigned int prot = 0, unsigned int time = 0

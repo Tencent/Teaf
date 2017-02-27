@@ -95,7 +95,7 @@ int AceSockHdrBase::send(ACE_Message_Block* ack_msg /* = NULL */)
     
     while (ack_msg)
     {
-        ACE_DEBUG((LM_NOTICE, "[%D] AceSockHdrBase start to send ack_msg=0x%08x\n", ack_msg));
+        ACE_DEBUG((LM_NOTICE, "[%D] AceSockHdrBase start to send len=%d,ack_msg=0x%08x\n", ack_msg->length(), ack_msg));
         //发送消息时确保设置非阻塞模式 timeout 才能用 NULL by xwfang 2010-01-22
         int ret = this->peer().send(ack_msg->rd_ptr(), ack_msg->length(), time_null_); 
         switch (ret)
@@ -182,7 +182,7 @@ int AceSockHdrBase::send(ACE_Message_Block* ack_msg /* = NULL */)
 
 int AceSockHdrBase::send_n(char* ack_msg, int len)
 {
-    ACE_DEBUG((LM_NOTICE, "[%D] AceSockHdrBase start to send_n ack_msg=0x%08x\n", ack_msg));
+    ACE_DEBUG((LM_NOTICE, "[%D] AceSockHdrBase start to send_n len=%d,ack_msg=0x%08x\n", len, ack_msg));
     //发送消息时确保使用非阻塞模式  如果发送的包过大(M级别) time_zero_ 应该要调大 不然会有问题
     int ret = this->peer().send_n(ack_msg, len, &time_zero_); 
     switch (ret)
@@ -240,7 +240,7 @@ int AceSockHdrBase::send_n(char* ack_msg, int len)
             break;
     }
 
-    ACE_DEBUG((LM_NOTICE, "[%D] AceSockHdrBase send_n ack_msg=0x%08x succ\n", ack_msg));
+    ACE_DEBUG((LM_NOTICE, "[%D] AceSockHdrBase send_n len=%d,ack_msg=0x%08x succ\n", len, ack_msg));
     return 0;
 }
 

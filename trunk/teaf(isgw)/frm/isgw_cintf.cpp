@@ -258,9 +258,6 @@ int ISGWCIntf::handle_input(ACE_HANDLE /*fd = ACE_INVALID_HANDLE*/)
         
     }
 
-    //注释掉，同一个网络包有多个消息的情况下有可能会覆盖后面的消息头
-    //recv_buf_[recv_len_] = '\0'; 
-
     //已经获得完整的消息        
     unsigned int msg_len = msg_len_;
 	
@@ -337,87 +334,91 @@ int ISGWCIntf::process(char* msg, int sock_fd, int sock_seq, int msg_len)
 {
     ACE_DEBUG((LM_TRACE, "[%D] in ISGWCIntf::process()\n"));
     //消息进行分段处理
-    char tmp_msg[MAX_RECV_BUF_LEN_C] = {0};
-    memcpy(tmp_msg, msg, msg_len);
+    //char tmp_msg[MAX_RECV_BUF_LEN_C] = {0};
+    //memcpy(tmp_msg, msg, msg_len);
     
-    char* ptr = NULL;
-    char* p = ACE_OS::strtok_r(tmp_msg, MSG_SEPARATOR, &ptr);
-    while (p != NULL) 
+    //char* ptr = NULL;
+    //char* p = ACE_OS::strtok_r(tmp_msg, MSG_SEPARATOR, &ptr);
+    //while (p != NULL) 
+    //{
+    PPMsg *ack = NULL;
+    int index = ISGW_Object_Que<PPMsg>::instance()->dequeue(ack);
+    if ( ack == NULL )
     {
-        PPMsg *ack = NULL;
-        int index = ISGW_Object_Que<PPMsg>::instance()->dequeue(ack);
-        if ( ack == NULL )
-        {
-            ACE_DEBUG((LM_ERROR,
-                "[%D] ISGWCIntf dequeue msg failed,maybe system has no memory\n"
-                ));
-            return -1;
-        }
-        memset(ack, 0x0, sizeof(PPMsg));
-        ack->index = index;
-        snprintf(ack->msg, sizeof(ack->msg)-1, "%s", p);
-        // 获取到原始请求的前端连接信息 
-        ack->sock_ip = remote_addr_.get_ip_address();
-        ack->sock_port = remote_addr_.get_port_number();
-        ::gettimeofday(&(ack->tv_time), NULL);
-#ifdef _ISGW_CINTF_PARSE_ 
-        isgw_cintf_parse(ack);
-#else
-	isgw_cintf_parse_deft(ack);
-#endif
-        ACE_DEBUG((LM_NOTICE, "[%D] ISGWCIntf process msg"
-            ",rflag=%d,sock_fd=%u,protocol=%u"
-            ",ip=%u,port=%u,sock_seq=%u,seq_no=%u,time=%u"
-            ",msg=%s\n"
-            , ack->rflag
-            , ack->sock_fd
-            , ack->protocol
-            , ack->sock_ip
-            , ack->sock_port
-            , ack->sock_seq
-            , ack->seq_no
-            , ack->time
-            , ack->msg
+        ACE_DEBUG((LM_ERROR,
+            "[%D] ISGWCIntf dequeue msg failed,maybe system has no memory\n"
             ));
-        
-        //根据 rflag 判断 是直接返回客户端 还是 放到自身的消息队列中 
-        if (ack->rflag != 0)
-        {
-            strncat(ack->msg, MSG_SEPARATOR, strlen(MSG_SEPARATOR));//带上协议结束符 
-            ISGWAck::instance()->putq(ack);
-        }
-        else
-        {
-            int ret = queue_.enqueue(ack, &zero_);
-            ACE_DEBUG((LM_NOTICE, "[%D] ISGWCIntf process enqueue msg,ret=%d\n", ret));
-            if (ret == -1)
-            {
-                //记录丢失的消息
-                ACE_DEBUG((LM_ERROR, "[%D] ISGWCIntf process enqueue msg failed"
-                    ",rflag=%d,sock_fd=%u,protocol=%u"
-                    ",ip=%u,port=%u,sock_seq=%u,seq_no=%u,time=%u"
-                    ",msg=%s\n"
-                    , ack->rflag
-                    , ack->sock_fd
-                    , ack->protocol
-                    , ack->sock_ip
-                    , ack->sock_port
-                    , ack->sock_seq
-                    , ack->seq_no
-                    , ack->time
-                    , ack->msg
-                    ));
-                // 入队失败回收消息，避免内存泄漏
-                ISGW_Object_Que<PPMsg>::instance()->enqueue(ack, ack->index);
-                // 统计计数 
-                Stat::instance()->incre_stat(STAT_CODE_ISGWC_ENQUEUE);
-                // 与后端的连接模块 此处不必要断开连接 
-                //return -1;
-            }
-        }
-                
-        p = ACE_OS::strtok_r(NULL, MSG_SEPARATOR, &ptr);
+        return -1;
     }
+    memset(ack, 0x0, sizeof(PPMsg));
+    ack->index = index;
+    //snprintf(ack->msg, sizeof(ack->msg)-1, "%s", p);
+	memcpy(ack->msg, msg, msg_len);
+	ack->msg_len = msg_len;
+    // 获取到原始请求的前端连接信息 
+    ack->sock_ip = remote_addr_.get_ip_address();
+    ack->sock_port = remote_addr_.get_port_number();
+    ::gettimeofday(&(ack->tv_time), NULL);
+#ifdef _ISGW_CINTF_PARSE_ 
+    isgw_cintf_parse(ack);
+#else
+    isgw_cintf_parse_deft(ack);
+#endif
+    ACE_DEBUG((LM_NOTICE, "[%D] ISGWCIntf process msg"
+        ",rflag=%d,sock_fd=%u,protocol=%u"
+        ",ip=%u,port=%u,sock_seq=%u,seq_no=%u,time=%u"
+        ",msg=%s\n"
+        , ack->rflag
+        , ack->sock_fd
+        , ack->protocol
+        , ack->sock_ip
+        , ack->sock_port
+        , ack->sock_seq
+        , ack->seq_no
+        , ack->time
+        , ack->msg
+        ));
+    
+    //根据 rflag 判断 是直接返回客户端 还是 放到自身的消息队列中 
+    //用于支持透传模式 
+    //用isgw 的qmode 消息格式才支持, 不影响其他消息格式 
+    if (ack->rflag != 0)
+    {
+        strncat(ack->msg, MSG_SEPARATOR, strlen(MSG_SEPARATOR));//带上协议结束符 
+        ISGWAck::instance()->putq(ack);
+    }
+    else
+    {
+        int ret = queue_.enqueue(ack, &zero_);
+        ACE_DEBUG((LM_NOTICE, "[%D] ISGWCIntf process enqueue msg,ret=%d\n", ret));
+        if (ret == -1)
+        {
+            //记录丢失的消息
+            ACE_DEBUG((LM_ERROR, "[%D] ISGWCIntf process enqueue msg failed"
+                ",rflag=%d,sock_fd=%u,protocol=%u"
+                ",ip=%u,port=%u,sock_seq=%u,seq_no=%u,time=%u"
+                ",msg=%s\n"
+                , ack->rflag
+                , ack->sock_fd
+                , ack->protocol
+                , ack->sock_ip
+                , ack->sock_port
+                , ack->sock_seq
+                , ack->seq_no
+                , ack->time
+                , ack->msg
+                ));
+            // 入队失败回收消息，避免内存泄漏
+            ISGW_Object_Que<PPMsg>::instance()->enqueue(ack, ack->index);
+            // 统计计数 
+            Stat::instance()->incre_stat(STAT_CODE_ISGWC_ENQUEUE);
+            // 与后端的连接模块 此处不必要断开连接 
+            //return -1;
+        }
+    }
+                
+        //p = ACE_OS::strtok_r(NULL, MSG_SEPARATOR, &ptr);
+    //}
     
     ACE_DEBUG((LM_TRACE, "[%D] out ISGWCIntf::process()\n"));	
     return 0;	
