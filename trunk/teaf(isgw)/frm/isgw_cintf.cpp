@@ -449,7 +449,7 @@ int ISGWCIntf::handle_close(ACE_HANDLE fd, ACE_Reactor_Mask mask)
     //设置连接状态为不可用 
     string ip = remote_addr_.get_host_addr();
     ostringstream os;
-    os<< ip << ":" << this->get_handle();
+    os<<ip<<":"<<this->get_handle()<<":"<<this->get_seq();
     ACE_DEBUG((LM_DEBUG, "[%D] ISGWCIntf handle_close,ip=%s\n", os.str().c_str()));
     set_conn_status(os.str(), 0);
     

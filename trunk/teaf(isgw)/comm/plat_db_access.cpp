@@ -185,15 +185,19 @@ int PlatDbAccess::set_conns_char_set(const char* character_set)
     return ret;
 }
 
+//连接池上字符集都一样 处理一次就可以返回 
 unsigned long PlatDbAccess::escape_string(char *to, const char *from
 	, unsigned long length)
 {
-    unsigned long ret = 0;
+    int ret = 0;
     for(int i=0; i<conn_nums_&&0==ret; i++)
     {
         ACE_Guard<ACE_Thread_Mutex> guard(db_conn_lock_[i]); 
         if(db_conn_[i]!=NULL)
-        ret = db_conn_[i]->escape_string(to, from, length);
+        {
+            ret = db_conn_[i]->escape_string(to, from, length);
+			break;
+        }        
     }    
     return ret;
 }

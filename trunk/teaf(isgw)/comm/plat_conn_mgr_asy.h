@@ -36,17 +36,17 @@ class PlatConnMgrAsy
 {
 public:
     PlatConnMgrAsy();
-    PlatConnMgrAsy(const char*host_ip, int port);
+    PlatConnMgrAsy(const char*host_ip, int port, int ip_num=0);
     ~PlatConnMgrAsy();
     // 通过配置初始化连接 
     int init(const char *section = NULL); 
     // 判断 intf 是否正常 ,放入 ISGWAck 的队列即可 由接口层自己负责发送消息  
     int send(const void *buf, int len, const unsigned int uin=0);
     int send(const void *buf, int len, ASYRMsg &rmsg, const unsigned int uin=0);
-    
-private:
     ///通过指定ip和port 初始化第index个连接，不指定则用内部的 
     int init_conn(int ip_idx, const char *ip=NULL, int port=0);
+    
+private:
     inline int get_ip_idx(const unsigned int uin);
     // 判断连接是否正常 
     inline int is_estab(int ip_idx);

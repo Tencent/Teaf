@@ -45,10 +45,11 @@ int AceSockHdrBase::open(void* p)
     
     this->peer().get_remote_addr(remote_addr_);
     ACE_DEBUG((LM_DEBUG, "[%D] AceSockHdrBase conn with %s:%d"
-        ",sock_seq:%d\n"
+        ",sock_seq:%d,sock_fd:%d\n"
         , remote_addr_.get_host_addr()
         , remote_addr_.get_port_number()
-        , get_seq()));
+        , get_seq(), get_handle()
+        ));
 
     this->peer().enable(ACE_NONBLOCK); //显式设置成非阻塞模式 
     //将新建连接的发送和接受缓存区设置为64K

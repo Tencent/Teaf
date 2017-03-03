@@ -12,7 +12,8 @@ static CONN_STATUS_MAP conn_status_; //存放连接信息
 
 int set_conn_status(string ip, int status)
 {
-    if(status == 0) 
+    ACE_DEBUG((LM_DEBUG, "[%D] set_conn_status,key=%s,status=%d\n", ip.c_str(), status));
+    if(status == 0)
     {
         conn_status_.erase(ip);
         return 0;
@@ -38,13 +39,18 @@ PlatConnMgrAsy::PlatConnMgrAsy()
     memset(&conn_info_, 0x0, sizeof(conn_info_));    
 }
 
-PlatConnMgrAsy::PlatConnMgrAsy(const char*host_ip, int port)
+PlatConnMgrAsy::PlatConnMgrAsy(const char*host_ip, int port, int ip_num)
 {
     port_ = port;
     time_out_.set(SOCKET_TIME_OUT/1000, (SOCKET_TIME_OUT%1000)*1000);
     memset(&conn_info_, 0x0, sizeof(conn_info_));
     
-    ip_num_ = IP_NUM_MAX;    
+    ip_num_ = IP_NUM_DEF;
+	if (ip_num != 0)
+	{
+	    ip_num_ = ip_num;
+	}
+	
     for(int i = 0; i < ip_num_; ++i)
     {
         snprintf(ip_[i], sizeof(ip_[i]), "%s", host_ip);
@@ -204,7 +210,7 @@ int PlatConnMgrAsy::init_conn(int ip_idx, const char *ip, int port)
         , &conn_info_
         ));
     ostringstream os;
-    os<<ip_[ip_idx]<<":"<<conn_info_[ip_idx].sock_fd;
+    os<<ip_[ip_idx]<<":"<<conn_info_[ip_idx].sock_fd<<":"<<conn_info_[ip_idx].sock_seq;
     set_conn_status(os.str(), 1);
     return 0;
 }
@@ -289,11 +295,11 @@ int PlatConnMgrAsy::is_estab(int ip_idx)
 {
     //ISGWCIntf 里面会清理连接状态，这里只需要判断即可
     ostringstream os;
-    os<<ip_[ip_idx]<<":"<<conn_info_[ip_idx].sock_fd;
+    os<<ip_[ip_idx]<<":"<<conn_info_[ip_idx].sock_fd<<":"<<conn_info_[ip_idx].sock_seq;
     if (get_conn_status(os.str()) != 1)
     {
         ACE_DEBUG((LM_ERROR,"[%D] PlatConnMgrAsy check estab failed"
-            ",ip=%s,port=%d\n", ip_[ip_idx], port_));
+            ",ip_idx=%d,ip=%s,port=%d\n", ip_idx, ip_[ip_idx], port_));
         return -1;
     }
     
@@ -303,7 +309,7 @@ int PlatConnMgrAsy::is_estab(int ip_idx)
 int PlatConnMgrAsy::fini_conn(int ip_idx)
 {
     ostringstream os;
-    os<<ip_[ip_idx]<<":"<<conn_info_[ip_idx].sock_fd;
+    os<<ip_[ip_idx]<<":"<<conn_info_[ip_idx].sock_fd<<":"<<conn_info_[ip_idx].sock_seq;
     set_conn_status(os.str(), 0);
     conn_info_[ip_idx].sock_fd = 0;
     conn_info_[ip_idx].sock_seq = 0;
