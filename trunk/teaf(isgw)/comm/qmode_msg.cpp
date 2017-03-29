@@ -11,6 +11,7 @@ QModeMsg::QModeMsg(const int len, const char* body, unsigned int sock_fd, unsign
     cmd_ = 0;
     uin_ = 0;
     rflag_ = 0;
+	gettimeofday(&tvtime_, NULL);
     memcpy(body_, body, len);
     body_len_ = len;
 }

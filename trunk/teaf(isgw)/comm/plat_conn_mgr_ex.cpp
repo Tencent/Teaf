@@ -693,6 +693,7 @@ int PlatConnMgrEx::fini(int index, int ip_idx)
 		, fd
 		, ret
 		));
+		conn_[ip_idx][index]->close();
         
         delete conn_[ip_idx][index];
         conn_[ip_idx][index] = NULL;

@@ -323,7 +323,7 @@ PPMsg* ISGWMgrSvc::process(PPMsg*& ppmsg)
     unsigned time_diff = EASY_UTIL::get_span(&(ppmsg->tv_time), &ppmsg->p_start);
     //根据客户端请求指令进行相关操作
     ACE_DEBUG((LM_NOTICE, "[%D] ISGWMgrSvc start to process cmd=%d,time_diff=%u"
-        ",sock_fd=%u,prot=%u,ip=%u,port=%u,sock_seq=%u,seq_no=%u\n"
+        ",sock_fd=%u,prot=%u,ip=%u,port=%u,sock_seq=%u,seq_no=%u,MAX_INNER_MSG_LEN=%d\n"
         , qmode_req.get_cmd()
         , time_diff
         , ppmsg->sock_fd
@@ -332,6 +332,7 @@ PPMsg* ISGWMgrSvc::process(PPMsg*& ppmsg)
         , ppmsg->sock_port
         , ppmsg->sock_seq
         , ppmsg->seq_no
+        , MAX_INNER_MSG_LEN
         ));
     //是否路由的标志，优先使用协议指定的
     int rflag = qmode_req.get_rflag();
