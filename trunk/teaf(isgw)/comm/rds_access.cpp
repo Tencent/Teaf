@@ -12,6 +12,8 @@ RdsSvr::RdsSvr(string & redis_sec)
 
 RdsSvr::RdsSvr()
 {
+    memset(&timeout_, 0x0, sizeof(timeout_));
+    port_ = 0;
 }
 
 RdsSvr::~RdsSvr()
@@ -2376,3 +2378,237 @@ int RdsSvr::pop_list_value(const std::string& list_name, std::string& value, uin
     freeReplyObject(reply);
     return 0;
 }
+
+// geo添加位置项 geoadd
+int RdsSvr::add_geo_list(string dbid, const string &hkey, const std::vector<GeoItem> &elems, int &num)
+{
+    Handle *h;
+    redisReply *reply = NULL;
+
+    ACE_Guard<ACE_Thread_Mutex> guard(get_handle(h));
+    
+    // 检查输入
+    if(sel_database(h, atoi(dbid.c_str()))!=0 || elems.empty())
+    {
+        ACE_DEBUG((LM_ERROR
+            , "[%D] RdsSvr::add_geo_list connect redis svr failed"
+            ",dbid=%s"
+            ",hkey=%s\n"
+            , dbid.c_str()
+            , hkey.c_str()));
+        return -1;
+    }
+
+    // 填充 cmd 与 key
+    std::vector<std::string> args(3 * elems.size() + 2);
+    size_t idx = 0;
+    args[idx++] = "geoadd";
+    args[idx++] = hkey;
+
+    // 填充元素
+    for(size_t i = 0;i < elems.size();i++)
+    {
+        args[idx++] = stringify(elems[i].lng);
+        args[idx++] = stringify(elems[i].lat);
+        args[idx++] = elems[i].name;
+    }
+    
+    std::vector<const char *> argv(args.size());
+    std::vector<size_t> argvlen(args.size());
+    for(size_t i = 0;i < args.size();i++)
+    {
+        argv[i] = args[i].data();
+        argvlen[i] = args[i].length();
+    }
+    reply = (redisReply *)redisCommandArgv(h->rc, argv.size(), &(argv[0]), &(argvlen[0]));
+    if(NULL==reply)
+    {
+        ACE_DEBUG((LM_ERROR
+            , "[%D] RdsSvr::add_geo_list exec failed"
+            ",dbid=%s\n"
+            , dbid.c_str()));
+        rst_handle(h);
+        freeReplyObject(reply);
+        return -1;
+    }
+    else if(REDIS_REPLY_ERROR==reply->type||h->rc->err!=0)
+    {
+        ACE_DEBUG((LM_ERROR
+            , "[%D] RdsSvr::add_geo_list reply error,err=%s"
+            ",dbid=%s"
+            ",hkey=%s\n"
+            , reply->str
+            , dbid.c_str()
+            , hkey.c_str()));
+        rst_handle(h);
+        freeReplyObject(reply);
+        return -1;
+    }
+        
+    if(REDIS_REPLY_INTEGER==reply->type)
+       num  = (int)reply->integer;
+    else
+    {
+        ACE_DEBUG((LM_ERROR
+            , "[%D] RdsSvr::add_geo_list failed,dbid=%s"
+            ",hkey=%s"
+            ",errinfo=%s\n"
+            , dbid.c_str()
+            , hkey.c_str()
+            , reply->str));
+        freeReplyObject(reply);
+        return -1;
+    }
+    freeReplyObject(reply);
+    
+    ACE_DEBUG((LM_DEBUG
+        , "[%D] RdsSvr::add_geo_list succ,dbid=%s,hkey=%s,fieldkey=%s,num=%d\n"
+        , dbid.c_str(), hkey.c_str(), elems[0].name.c_str(), num));
+
+    return 0;
+}
+
+// geo查询指定范围内的元素 GEORADIUS 
+int RdsSvr::get_geo_list(string dbid, const string &hkey, const GeoFindParam& param, std::vector<GeoItem> &elems)
+{
+    Handle *h;
+    redisReply *reply = NULL;
+
+    ACE_Guard<ACE_Thread_Mutex> guard(get_handle(h, 2));
+    
+    if(sel_database(h, atoi(dbid.c_str()))!=0)
+    {
+        ACE_DEBUG((LM_ERROR
+            , "[%D] RdsSvr::get_geo_list connect redis svr failed"
+            ",dbid=%s"
+            ",hkey=%s\n"
+            , dbid.c_str()
+            , hkey.c_str()));
+        return -1;
+    }
+
+    string sort_str = "asc";
+    if(param.sorttype == 1) 
+    {
+        sort_str = "desc";
+    }
+
+    if(param.withcoord > 0 && param.withdist > 0)
+    {
+        reply = (redisReply *)redisCommand(h->rc, "georadius %s %f %f %f m withcoord withdist %s count %d"
+                    , hkey.c_str()
+                    , param.lng
+                    , param.lat
+                    , param.radius
+                    , sort_str.c_str()
+                    , param.num);
+    }
+    else if(param.withcoord > 0)
+    {
+        reply = (redisReply *)redisCommand(h->rc, "georadius %s %f %f %f m withcoord %s count %d"
+                    , hkey.c_str()
+                    , param.lng
+                    , param.lat
+                    , param.radius
+                    , sort_str.c_str()
+                    , param.num);
+    }
+    else if(param.withdist > 0)
+    {
+        reply = (redisReply *)redisCommand(h->rc, "georadius %s %f %f %f m withdist %s count %d"
+                    , hkey.c_str()
+                    , param.lng
+                    , param.lat
+                    , param.radius
+                    , sort_str.c_str()
+                    , param.num);
+    }
+    else
+    {
+        reply = (redisReply *)redisCommand(h->rc, "georadius %s %f %f %f m %s count %d"
+                    , hkey.c_str()
+                    , param.lng
+                    , param.lat
+                    , param.radius
+                    , sort_str.c_str()
+                    , param.num);
+    }
+    
+    if(NULL==reply)
+    {
+        ACE_DEBUG((LM_ERROR
+            , "[%D] RdsSvr::get_geo_list exec failed"
+            ",dbid=%s\n"
+            , dbid.c_str()));
+        rst_handle(h);
+        freeReplyObject(reply);
+        return -1;
+    }
+    else if(REDIS_REPLY_ERROR==reply->type||h->rc->err!=0)
+    {
+        ACE_DEBUG((LM_ERROR
+            , "[%D] RdsSvr::get_geo_list reply error,err=%s"
+            ",dbid=%s"
+            ",hkey=%s\n"
+            , reply->str
+            , dbid.c_str()
+            , hkey.c_str()));
+        rst_handle(h);
+        freeReplyObject(reply);
+        return -1;
+    }
+
+    if(REDIS_REPLY_ARRAY==reply->type)
+    {
+        if(0==reply->elements)
+        {
+            ACE_DEBUG((LM_ERROR
+                , "[%D] RdsSvr::get_geo_list no row,dbid=%s,hkey=%s\n"
+                , dbid.c_str(), hkey.c_str()));
+            freeReplyObject(reply);
+            return 1;
+        }
+        else
+        {
+            for(int idx = 0; idx < reply->elements; ++idx)
+            {
+                GeoItem item;
+                if(param.withdist <= 0 && param.withcoord <= 0 )
+                {
+                    item.name = reply->element[idx]->str;
+                }
+                else if(param.withdist > 0
+                        && reply->element[idx]->elements >= 2)
+                {
+                    item.name = reply->element[idx]->element[0]->str;
+                    item.dist = atof(reply->element[idx]->element[1]->str);
+                    if(param.withcoord > 0 
+                        && reply->element[idx]->elements >= 3
+                        && reply->element[idx]->element[2]->elements >= 2)
+                    {
+                        item.lng = atof(reply->element[idx]->element[2]->element[0]->str);
+                        item.lat = atof(reply->element[idx]->element[2]->element[1]->str);
+                    }
+                }
+                else if(param.withcoord >= 0 
+                        && reply->element[idx]->elements >= 2
+                        && reply->element[idx]->element[1]->elements >= 2)
+                {
+                    item.name = reply->element[idx]->element[0]->str;
+                    item.lng = atof(reply->element[idx]->element[1]->element[0]->str);
+                    item.lat = atof(reply->element[idx]->element[1]->element[1]->str);
+                }
+                elems.push_back(item);
+            }
+        }
+    }
+
+    freeReplyObject(reply);
+    
+    ACE_DEBUG((LM_DEBUG
+        , "[%D] RdsSvr::get_geo_list succ,dbid=%s,hkey=%s\n"
+        , dbid.c_str(), hkey.c_str()));
+
+    return 0;
+}
+

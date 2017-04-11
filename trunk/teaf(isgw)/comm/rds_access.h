@@ -22,6 +22,27 @@ struct SSPair{
     int32_t has_err;
 };
 
+// geo元素结构
+struct GeoItem{
+    GeoItem() : name(), lng(0), lat(0), dist(0){}
+    string name;    // 位置key
+    double lng;     
+    double lat;
+    double dist;     // 返回结果中有距离 
+};
+
+// geo范围查询参数
+struct GeoFindParam{
+    GeoFindParam() : lng(0), lat(0), radius(0), withcoord(0), withdist(0), sorttype(0), num(1){}
+    double lng;
+    double lat;        // 查询经纬度 必填
+    double radius;     // 半径 统一以m为单位 必填
+    int32_t withcoord; // 为1时返回经纬度 可选
+    int32_t withdist;  // 为1是返回距离 可选
+    int32_t sorttype;  // 排序方式 默认ASC 为1时为DESC 可选
+    int32_t num;       // 个数 默认一条 可选 但最好填一下
+};
+
 class RdsSvr {
 
 public:
@@ -162,6 +183,12 @@ public:
         , std::vector<std::string>& res
         , int32_t type = 0);
     
+    // geo添加位置项 geoadd num为成功添加的个数
+    int add_geo_list(string dbid, const string &hkey, const std::vector<GeoItem> &elems, int &num);
+
+    // geo查询指定范围内的元素 GEORADIUS 
+    int get_geo_list(string dbid, const string &hkey, const GeoFindParam& param, std::vector<GeoItem> &elems);
+
     RdsSvr();
     RdsSvr(string &redis);
     ~RdsSvr();

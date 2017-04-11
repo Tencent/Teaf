@@ -62,7 +62,7 @@ public:
 private:
     int connect(); //内部自动重连用
     void disconnect(); //
-	int set_character_set(); 
+    int set_character_set(); 
 
 private:
     MYSQL mysql_;
