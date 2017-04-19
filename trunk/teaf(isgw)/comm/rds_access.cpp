@@ -4,10 +4,11 @@
 #include "stat.h"
 
 int RdsSvr::inited = 0;
+ACE_RW_Mutex RdsSvr::init_rw_lock;
 
 RdsSvr::RdsSvr(string & redis_sec)
 {
-    init(redis_sec);
+//    init(redis_sec);
 }
 
 RdsSvr::RdsSvr()
@@ -20,9 +21,40 @@ RdsSvr::~RdsSvr()
 {
 }
 
+bool RdsSvr::is_inited()
+{
+	bool is_init = false;
+	init_rw_lock.acquire_read();
+	is_init = inited > 0 ? true : false;
+	init_rw_lock.release();
+	return is_init;
+}
+
+bool RdsSvr::check_and_set_init_status()
+{
+	bool is_init = false;
+	init_rw_lock.acquire_write();
+	is_init = inited > 0 ? true : false;
+	inited = 1;
+	init_rw_lock.release();
+	return is_init;
+}
+
+void RdsSvr::set_inited(int init)
+{
+	init_rw_lock.acquire_write();
+	inited = init;
+	init_rw_lock.release();
+	return;
+}
+
 // 没加锁 最好在单线程环境 初始化一下 
 int RdsSvr::init(string redis_sec)
 {
+	if (check_and_set_init_status())
+	{
+		return 0;
+	}
     int conn_num = 20;
     int timeout = 500;
     port_ = 6379;
@@ -36,6 +68,7 @@ int RdsSvr::init(string redis_sec)
     if (0 != SysConf::instance()->get_conf_str(redis_sec.c_str(), "master_ip", master_ip_, sizeof(master_ip_)))
     {
         ACE_DEBUG((LM_INFO, "[%D] RdsSvr::init master ip read failed\n"));
+        set_inited(0);
         return -1;
     }
     SysConf::instance()->get_conf_int(redis_sec.c_str(), "port", (int *)&port_);
@@ -77,7 +110,7 @@ int RdsSvr::init(string redis_sec)
         , "[%D] RdsSvr::init succ,timeout=%d,conn_num=%d,master=%s,slave=%s\n"
         , timeout, conn_num, master_ip_, slave_ip_));
     
-    inited = 1;
+//    inited = 1;
     return 0;
 }
 
@@ -154,7 +187,7 @@ int RdsSvr::sel_database(Handle * &h, int dbid)
 RdsSvr &RdsSvr::instance()
 {
     static RdsSvr instance_;
-    if (!inited)
+    if (!is_inited())
     {
         instance_.init();
     }    

@@ -75,10 +75,11 @@ int ISGWMgrSvc::init()
     SysConf::instance()->get_conf_int("router", "route_flag", &rflag_);
     int idx=0;
     char tmp_str[32];
-    while(1&rflag_)
+    while(rflag_ != 0)
     {
         char ip[16] = {0};
         int port = 0;
+        int conn_num = 0;
         snprintf(tmp_str, sizeof(tmp_str), "ip_%d", idx);
         if(0!=SysConf::instance()->get_conf_str("router", tmp_str, ip, sizeof(ip)))
             break;
@@ -86,8 +87,12 @@ int ISGWMgrSvc::init()
         snprintf(tmp_str, sizeof(tmp_str), "port_%d", idx);
         if(0!=SysConf::instance()->get_conf_int("router", tmp_str, &port))
             break;        
+
+        snprintf(tmp_str, sizeof(tmp_str), "conn_num_%d", idx);
+        if(0!=SysConf::instance()->get_conf_int("router", tmp_str, &conn_num))
+            break;        
         
-        PlatConnMgrAsy *mgr =new PlatConnMgrAsy(ip, port);
+        PlatConnMgrAsy *mgr =new PlatConnMgrAsy(ip, port, conn_num);
         char appname[32] = {0};
         snprintf(appname, sizeof(appname), "router_%d", idx);        
         route_conn_mgr_map_[appname] = mgr;
