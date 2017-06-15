@@ -3,18 +3,22 @@
 #include <map>
 #include "stat.h"
 
-int RdsSvr::inited = 0;
-ACE_RW_Mutex RdsSvr::init_rw_lock;
+ACE_Thread_Mutex RdsSvr::instance_mutex_;
+RdsSvr* RdsSvr::instance_ = NULL;
 
 RdsSvr::RdsSvr(string & redis_sec)
 {
-//    init(redis_sec);
+    memset(&timeout_, 0x0, sizeof(timeout_));
+    port_ = 0;
+    inited = 0;
+    init(redis_sec);
 }
 
 RdsSvr::RdsSvr()
 {
     memset(&timeout_, 0x0, sizeof(timeout_));
     port_ = 0;
+    inited = 0;
 }
 
 RdsSvr::~RdsSvr()
@@ -24,27 +28,27 @@ RdsSvr::~RdsSvr()
 bool RdsSvr::is_inited()
 {
 	bool is_init = false;
-	init_rw_lock.acquire_read();
+//	init_rw_lock.acquire_read();
 	is_init = inited > 0 ? true : false;
-	init_rw_lock.release();
+//	init_rw_lock.release();
 	return is_init;
 }
 
 bool RdsSvr::check_and_set_init_status()
 {
 	bool is_init = false;
-	init_rw_lock.acquire_write();
+//	init_rw_lock.acquire_write();
 	is_init = inited > 0 ? true : false;
 	inited = 1;
-	init_rw_lock.release();
+//	init_rw_lock.release();
 	return is_init;
 }
 
 void RdsSvr::set_inited(int init)
 {
-	init_rw_lock.acquire_write();
+//	init_rw_lock.acquire_write();
 	inited = init;
-	init_rw_lock.release();
+//	init_rw_lock.release();
 	return;
 }
 
@@ -186,12 +190,23 @@ int RdsSvr::sel_database(Handle * &h, int dbid)
 
 RdsSvr &RdsSvr::instance()
 {
-    static RdsSvr instance_;
-    if (!is_inited())
+//    static RdsSvr instance_;
+//    if (!is_inited())
+//    {
+//        instance_.init();
+//    }
+
+    if(instance_ == NULL)
     {
-        instance_.init();
-    }    
-    return instance_;
+        ACE_Guard<ACE_Thread_Mutex> guard(instance_mutex_);
+        if(instance_ == NULL)
+        {
+            instance_ = new RdsSvr();
+            ACE_ASSERT(instance_ != NULL);
+            instance_->init();
+        }
+    }
+    return *instance_;
 }
 
 int RdsSvr::del_key(string dbid, const string &uin, const string &custom_key)

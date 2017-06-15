@@ -223,11 +223,14 @@ private:
     char master_ip_[128];
     char slave_ip_[128];
     char passwd_[64];
-    static int inited;
-    static ACE_RW_Mutex init_rw_lock;
-    static bool is_inited();
-    static void set_inited(int init = 1);
-    static bool check_and_set_init_status();
+    int inited;
+    static ACE_Thread_Mutex instance_mutex_;
+    static RdsSvr* instance_;
+
+//    static ACE_RW_Mutex init_rw_lock;
+    bool is_inited();
+    void set_inited(int init = 1);
+    bool check_and_set_init_status();
 };
 
 #endif 
