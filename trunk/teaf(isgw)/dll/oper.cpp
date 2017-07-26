@@ -1,4 +1,4 @@
-// g++  oper.cpp  -fPIC -shared -o liboper.so -lACE  -I./ -I/usr/local/include/ace -I../../easyace/ -I../comm/ 
+// g++  oper.cpp  -fPIC -shared -o liboper.so -lACE  -I./ -I/usr/local/include/ace -I../easyace/ -I../comm/ 
 #include "oper.h"
 #include "easyace_all.h"
 

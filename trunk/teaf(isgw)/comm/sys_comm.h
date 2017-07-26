@@ -60,7 +60,7 @@ int format_match(const char *key_str, const char* value);
 int string_to_map(const string &input, NAME_VALUE &form_data, int flag=0, char sep1=',', char sep2='|');
 int string_to_map(const string &input, map<unsigned,unsigned> &form_data);
 int string_to_map(const string& input, map<unsigned int, string>& data,
-						const string& record_delim="|", const string& field_delim=",");
+                        const string& record_delim="|", const string& field_delim=",");
 int map_to_string(string &output, NAME_VALUE &form_data, int flag=0);
 int map_to_string(string &output, map<unsigned,unsigned> &form_data);
 int format_time(time_t nowtime, string &time_string, const string& format= "%Y-%m-%d %H:%M:%S");
@@ -184,22 +184,51 @@ string join(const T& list, const string& delim = " ")
     return oss.str();
 }
 
+template <typename T>
+string join(const T& list, const uint32_t max_length, const string& delim = " ")
+{
+    std::ostringstream oss;
+    uint32_t cur_len = 0;
+    
+    for(typename T::const_iterator cit = list.begin(); cit != list.end(); ++cit)
+    {
+        std::ostringstream tmp_oss;
+        if(cit == list.begin())
+        {
+            tmp_oss << *cit;
+            cur_len += tmp_oss.str().size();
+            if (cur_len > max_length) break;
+
+            oss<<*cit;
+        }
+        else
+        {            
+            tmp_oss << delim << *cit;
+            cur_len += tmp_oss.str().size();
+            if (cur_len > max_length) break;
+            
+            oss<<delim<<*cit;
+        }
+    }
+    return oss.str();
+}
+
 // map2str
 template<typename K, typename V>
 std::string map2str(const std::map<K, V> &src, const std::string &odlmt, 
 const std::string &idlmt)
 {
     std::ostringstream oss("");
-	typename std::map<K, V>::const_iterator it = src.begin();
-	if(it != src.end())
-	{
-		oss << it->first << idlmt << it->second;
-		for(++it;it != src.end();++it)
-	    {
-	        oss << odlmt << it->first << idlmt << it->second;
-	    }
-	}
-	
+    typename std::map<K, V>::const_iterator it = src.begin();
+    if(it != src.end())
+    {
+        oss << it->first << idlmt << it->second;
+        for(++it;it != src.end();++it)
+        {
+            oss << odlmt << it->first << idlmt << it->second;
+        }
+    }
+    
     return oss.str();
 };
 

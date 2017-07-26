@@ -203,6 +203,13 @@ private:
         return oss.str();
     }
     
+    std::string stringify(double input, int precision)
+    {
+        std::ostringstream oss;
+        oss << std::setprecision(precision) << input;
+        return oss.str();
+    }
+
     ACE_Thread_Mutex& get_handle(Handle * &h, int flag=0);
     void rst_handle(Handle * &h);
     int sel_database(Handle * &h, int dbid);

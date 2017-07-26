@@ -2456,8 +2456,8 @@ int RdsSvr::add_geo_list(string dbid, const string &hkey, const std::vector<GeoI
     // Ìî³äÔªËØ
     for(size_t i = 0;i < elems.size();i++)
     {
-        args[idx++] = stringify(elems[i].lng);
-        args[idx++] = stringify(elems[i].lat);
+        args[idx++] = stringify(elems[i].lng, 10);
+        args[idx++] = stringify(elems[i].lat, 10);
         args[idx++] = elems[i].name;
     }
     

@@ -86,10 +86,10 @@ int ACESvc<IN_MSG_TYPE, OUT_MSG_TYPE>::init()
     
     //active threads
     threads_ = DEFAULT_THREADS;
-    activate(THR_NEW_LWP | THR_JOINABLE, threads_);
+    int ret = activate(THR_NEW_LWP | THR_JOINABLE | THR_INHERIT_SCHED, threads_, 1);
 
-    ACE_DEBUG((LM_INFO, "[%D] ACESvc init succ,threads=%d,inner lock=0x%x\n"
-        , threads_, &(queue_[0].lock()) ));
+    ACE_DEBUG((LM_INFO, "[%D] ACESvc init succ,threads=%d,inner lock=0x%x,ret=%d\n"
+        , threads_, &(queue_[0].lock()), ret));
     return 0;
 }
 

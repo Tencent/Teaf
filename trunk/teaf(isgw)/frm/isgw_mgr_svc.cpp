@@ -126,10 +126,11 @@ int ISGWMgrSvc::init()
         threads = SVC_QUE_NUM;
     }
     ACE_DEBUG((LM_INFO, "[%D] ISGWMgrSvc set number of threads=%d\n", threads));
-    activate(THR_NEW_LWP | THR_JOINABLE, threads);
+	//第三个参数需要指定为 1 强制启动线程 不然有些平台可能有问题 
+    ret = activate(THR_NEW_LWP | THR_JOINABLE | THR_INHERIT_SCHED, threads, 1);
 
-    ACE_DEBUG((LM_INFO,"[%D] ISGWMgrSvc init succ,inner lock=0x%x,conn_mgr_lock=0x%x\n"
-            , &(queue_[0].lock()), &(conn_mgr_lock_.lock()) ));
+    ACE_DEBUG((LM_INFO,"[%D] ISGWMgrSvc init succ,inner lock=0x%x,conn_mgr_lock=0x%x,ret=%d\n"
+            , &(queue_[0].lock()), &(conn_mgr_lock_.lock()), ret));
     return 0;
 }
 
