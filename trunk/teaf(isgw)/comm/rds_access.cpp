@@ -781,6 +781,104 @@ int RdsSvr::get_set(const std::string& key
     return 0;
 }
 
+int RdsSvr::get_sset_list_by_score(const std::string& dbid, const std::string& ssid,
+		int64_t min, int64_t max, int cnt, bool is_desc, vector<SSPair>& elems)
+{
+    Handle *h;
+    redisReply *reply = NULL;
+
+    ACE_Guard<ACE_Thread_Mutex> guard(get_handle(h, 2));
+    if(sel_database(h, atoi(dbid.c_str()))!=0)
+    {
+        ACE_DEBUG((LM_ERROR
+            , "[%D] RdsSvr::get_sset_list_by_score connect redis svr failed"
+            ",dbid=%s"
+            ",ssid=%s\n"
+            , dbid.c_str()
+            , ssid.c_str()));
+        return -1;
+    }
+
+    if (is_desc)
+    {
+        reply = (redisReply *)redisCommand(h->rc, "ZREVRANGEBYSCORE %s %lld %lld WITHSCORES LIMIT 0 %d"
+                    , ssid.c_str()
+                    , max
+                    , min
+					, cnt);
+    }
+    else
+    {
+        reply = (redisReply *)redisCommand(h->rc, "ZRANGEBYSCORE %s %lld %lld WITHSCORES LIMIT 0 %d"
+                    , ssid.c_str()
+                    , min
+                    , max
+					, cnt);
+    }
+
+    if(NULL==reply)
+    {
+        ACE_DEBUG((LM_ERROR
+            , "[%D] RdsSvr::get_sset_list_by_score exec failed"
+            ",dbid=%s\n"
+            , dbid.c_str()));
+        rst_handle(h);
+        freeReplyObject(reply);
+        return -1;
+    }
+    else if(REDIS_REPLY_ERROR==reply->type||h->rc->err!=0)
+    {
+        ACE_DEBUG((LM_ERROR
+            , "[%D] RdsSvr::get_sset_list_by_score reply error,err=%s"
+            ",dbid=%s"
+            ",ssid=%s\n"
+            , reply->str
+            , dbid.c_str()
+            , ssid.c_str()));
+        rst_handle(h);
+        freeReplyObject(reply);
+        return -1;
+    }
+
+    if(REDIS_REPLY_ARRAY==reply->type)
+    {
+        if(0==reply->elements)
+        {
+            ACE_DEBUG((LM_ERROR
+                , "[%D] RdsSvr::get_sset_list_by_score no row,dbid=%s,ssid=%s\n"
+                , dbid.c_str(), ssid.c_str()));
+            freeReplyObject(reply);
+            return 1;
+        }
+        else if(reply->elements%2!=0)
+        {
+            ACE_DEBUG((LM_ERROR
+                , "[%D] RdsSvr::get_sset_list_by_score failed,ret array error"
+                ",dbid=%s"
+                ",key=%s\n"
+                , dbid.c_str()
+                , ssid.c_str()));
+            freeReplyObject(reply);
+            return -1;
+        }
+        for(int idx = 0; idx < reply->elements; idx += 2)
+        {
+        	SSPair pair;
+        	pair.member = reply->element[idx]->str;
+        	pair.score = strtoll(reply->element[idx+1]->str, NULL, 10);
+        	elems.push_back(pair);
+        }
+    }
+    freeReplyObject(reply);
+
+    ACE_DEBUG((LM_DEBUG
+        , "[%D] RdsSvr::get_sset_list succ,dbid=%s,ssid=%s\n"
+        , dbid.c_str(), ssid.c_str()));
+
+    return 0;
+
+}
+
 //flag=1表示score降序排列,否则score升序排列
 int RdsSvr::get_sset_list(string dbid
                             , const string &ssid
@@ -931,7 +1029,7 @@ int RdsSvr::get_sset_score(string dbid
         	elems[idx].score = strtoll(reply->str, NULL, 10);
         }
         else
-            ACE_DEBUG((LM_ERROR
+            ACE_DEBUG((LM_TRACE
                 , "[%D] RdsSvr::get_sset_score failed,row error"
                 ",dbid=%s"
                 ",ssid=%s"
@@ -1524,7 +1622,7 @@ int RdsSvr::get_hash_field_all(string dbid
     {
         if(0==reply->elements)
         {
-            ACE_DEBUG((LM_ERROR
+            ACE_DEBUG((LM_DEBUG
                 , "[%D] RdsSvr::get_hash_field_all no row,dbid=%s,hkey=%s\n"
                 , dbid.c_str(), hkey.c_str()));
             freeReplyObject(reply);
@@ -2186,14 +2284,24 @@ int RdsSvr::eval_multi_command(const string &script
     , std::vector<std::string>& res
     , int32_t type)
 {
-    if(script.empty() || keys.empty() || keys.size() != params.size())
+//    if(script.empty() || keys.empty() || keys.size() != params.size())
+//    {
+//        return ERROR_PARA_ILL;
+//    }
+    
+    if(script.empty() || keys.empty())
     {
         return ERROR_PARA_ILL;
     }
-    
+
     Handle *h;
     redisReply *reply = NULL;
     ACE_Guard<ACE_Thread_Mutex> guard(get_handle(h));
+
+    if (h == NULL || h->rc == NULL)
+    {
+    	return -10;
+    }
 
     // 填充 cmd 与 key
     std::vector<std::string> args(1, "EVAL");

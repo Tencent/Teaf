@@ -55,7 +55,7 @@ int ISGWApp::init_conf()
     if (cfg_path_env == NULL)
     {
         ACE_DEBUG((LM_INFO, "[%D] env %s not set, use default working path\n", cfg_path_env_name));
-        cfg_path_env = "./";
+        cfg_path_env = ".";
     }
 
     string conf_file = program_;
@@ -91,7 +91,7 @@ int ISGWApp::init_stat()
     if (path_env == NULL)
     {
         ACE_DEBUG((LM_INFO, "[%D] env %s not set, use default working path\n", path_env_name));
-        path_env = "./";
+        path_env = ".";
     }
 
     string stat_file = program_;
@@ -111,7 +111,7 @@ int ISGWApp::init_app(int , ACE_TCHAR* [])
     ret = init_stat();
     if (ret != 0 )
     {
-        ACE_DEBUG((LM_ERROR, "[%D] ISGWApp init stat failed,go on.\n"));
+        ACE_DEBUG((LM_ERROR, "[%D] ISGWApp init stat failed,go on.ret=%d\n", ret));
     }
     
     //消息响应类

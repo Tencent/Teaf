@@ -129,6 +129,11 @@ public:
                         , int &num);
     //查询指定key下sorted-set数据的member个数
     int get_sset_num(string dbid, const string &ssid);
+
+    //根据分数查询sorted-set
+    int get_sset_list_by_score(const std::string& dbid, const std::string& ssid,
+    		int64_t min, int64_t max, int cnt, bool is_desc, vector<SSPair>& elems);
+
 /*-----------------sorted set---------------------------*/
 
     //获取hash表中指定field的value值

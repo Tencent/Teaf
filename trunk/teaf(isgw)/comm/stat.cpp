@@ -42,6 +42,7 @@ int Stat::init(const char* file_name, int flag)
     {
         strncpy(file_name_, file_name,sizeof(file_name_));
     }
+	ACE_DEBUG((LM_INFO,"[%D] Stat init,file_name=%s,file_size=%d\n", file_name_, file_size_));
 
     if (stat_file_.map(file_name_, file_size_,
         O_RDWR | O_CREAT, ACE_DEFAULT_FILE_PERMS,
