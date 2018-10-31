@@ -1,42 +1,42 @@
-## Teaf 简介
-Tencent Easy ACE Framework，基于ACE的高性能轻量级服务框架，单进程多线程模型，支持select/epoll等多种网络IO模型，同时支持tcp和udp协议，支持二进制(pb等)和文本格式(json等，易于理解)，相对多进程模型的框架来说更易维护，更轻量。业务侧只需要开发自己的逻辑处理即可实现高性能的业务后台服务器。已经在腾讯互娱(IEG)大部分平台类产品中成熟应用，比如idip，游戏人生，心悦，帮帮，新终端游戏中心aj，cross等，公司其他BG也有很多产品在使用。
+## Teaf Introduction
+Tencent Easy ACE Framework, ACE-based high-performance lightweight service framework, single-process multi-threading model, support multiple network IO models such as select/epoll, support tcp and udp protocols, support binary (pb, etc.) and text format ( Json et al., easy to understand), is easier to maintain and lighter than the framework of a multi-process model. The business side only needs to develop its own logical processing to achieve a high-performance business back-end server. It has been matured in most platform products of Tencent Entertainment (IEG), such as idip, game life, heart, help, new terminal game center aj, cross, etc. The company's other BG also has many products in use.
 
-具体的详细功能列表如下：
-* 单进程多线程模型，运营简单，高性能；
-* 支持二进制(pb等)和文本格式(json等，易于理解)；
-3. 指令流量控制、请求量监控等特性；
-4. 提供多种数据库，存储访问接口封装，包括mysql， redis等；
-5. 提供统一的访问量数据采集（统计）；
-6. 可以支持消息路由转发；
-7. 提供批量处理特性(常用于批量的好友信息查询）；
-8. 支持业务控制是否返回消息；
-9. 支持和后端模块同步和异步两种连接管理模式；
-10. 提供很多公共的工具函数或者常用类，比如加解密，编解码，字符集转换等；
+The specific detailed function list is as follows:
+* Single-process multi-threaded model, simple operation and high performance;
+* Support binary (pb, etc.) and text format (json, etc., easy to understand);
+3. Command flow control, request volume monitoring and other characteristics;
+4. Provide a variety of databases, storage access interface package, including mysql, redis, etc.;
+5. Provide uniform access data collection (statistics);
+6. Can support message routing and forwarding;
+7. Provide batch processing features (usually used for bulk friend information query);
+8. Support business control to return messages;
+9. Supports both the synchronous and asynchronous connection management modes of the backend module;
+10. Provide a lot of common tool functions or common classes, such as encryption and decryption, codec, character set conversion, etc.
 
-性能参考数据：普通idc8核服务器(tlinux2.0   intel 2.53G CPU    8G 内存)
-100+客户端，跑单个isgw/teaf 服务器进程，处理能力大概在6w qps，cpu总占用大概在170%（除以8就是21%，网络中断所在的cpu基本上跑满）
-跑4个进程，处理能力在23w qps左右。
+Performance reference data: ordinary idc8 core server (tlinux2.0 intel 2.53G CPU 8G memory)
+100+ client, running a single isgw/teaf server process, processing power is about 6w qps, cpu total occupancy is about 170% (divided by 8 is 21%, the cpu where the network interrupt is basically running)
+Run 4 processes, processing capacity is around 23w qps.
 
 #开发步骤
-1. 从 IsgwOperBase 继承子类
-2. 重新实现 IsgwOperBase* factory_method() 返回 继承的子类
+1. Inherit subclasses from IsgwOperBase
+2. Reimplement IsgwOperBase* factory_method() Returns Inherited subclass
 IsgwOperBase* factory_method()
 {
-    TempProxy::init();
-    
-    IsgwOperBase* obj = new PdbOper();
-    return obj;
+    TempProxy::init();
+    
+    IsgwOperBase* obj = new PdbOper();
+    Return obj;
 }
-3. 实现子类中的 process函数 实现相应的业务逻辑
-int process(QModeMsg& req, char* ack, int& ack_len);
-4. 编译及安装
+3. Implement the process function in the subclass to implement the corresponding business logic
+Int process(QModeMsg& req, char* ack, int& ack_len);
+4. Compile and install
 
-#样例程序
-svr/ 目录下有几个样例程序 比如 pdb_oper.cpp  *oper.cpp
-可以在svr目录下 make 编译体验一下 编译的时候注意需要依赖的库(如果没有mysql可以删掉跟db相关的文件即可)
+#样程序
+There are several sample programs in the svr/ directory, such as pdb_oper.cpp *oper.cpp
+You can compile the experience in the svr directory. Pay attention to the libraries you need to depend on when compiling (if you don't have mysql, you can delete the files related to db)
 
-#问题和技术交流QQ群 379103538
+#问题和技术交QQ群 379103538
 
-## 参与贡献
+## Participation contribution
 
-[腾讯开源激励计划](https://opensource.tencent.com/contribution) 鼓励开发者的参与和贡献，期待你的加入。
+[Tencent Open Source Incentive Program] (https://opensource.tencent.com/contribution) Encourage developers to participate and contribute, and look forward to your joining.
